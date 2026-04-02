@@ -1,0 +1,118 @@
+import axios from 'axios';
+import { API_BASE_URL } from '../constants';
+
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 15000,
+});
+
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('admin_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+apiClient.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
+
+// ─── AUTH ────────────────────────────────────────────────────────────────────
+export const authApi = {
+  login: (email: string, password: string) =>
+    apiClient.post('/auth/admin/login', { email, password }),
+  logout: () => apiClient.post('/auth/logout'),
+  me: () => apiClient.get('/auth/me'),
+  changePassword: (data: any) => apiClient.post('/auth/change-password', data),
+};
+
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+export const dashboardApi = {
+  getStats: () => apiClient.get('/admin/dashboard'),
+};
+
+// ─── AGENTS ──────────────────────────────────────────────────────────────────
+export const agentsApi = {
+  getAll: (params?: any) => apiClient.get('/admin/agents', { params }),
+  getById: (id: string) => apiClient.get(`/admin/agents/${id}`),
+  approve: (id: string) => apiClient.patch(`/admin/agents/${id}/approve`),
+  suspend: (id: string) => apiClient.patch(`/admin/agents/${id}/suspend`),
+  delete: (id: string) => apiClient.delete(`/admin/agents/${id}`),
+  updateCommission: (id: string, data: any) => apiClient.patch(`/admin/agents/${id}/commission`, data),
+};
+
+// ─── CUSTOMERS ───────────────────────────────────────────────────────────────
+export const customersApi = {
+  getAll: (params?: any) => apiClient.get('/admin/customers', { params }),
+  getById: (id: string) => apiClient.get(`/admin/customers/${id}`),
+  suspend: (id: string) => apiClient.patch(`/admin/customers/${id}/suspend`),
+};
+
+// ─── BOOKINGS ────────────────────────────────────────────────────────────────
+export const bookingsApi = {
+  getAll: (params?: any) => apiClient.get('/admin/bookings', { params }),
+  getById: (id: string) => apiClient.get(`/admin/bookings/${id}`),
+  cancel: (id: string, reason: string) => apiClient.patch(`/admin/bookings/${id}/cancel`, { reason }),
+  refund: (id: string, data: any) => apiClient.post(`/admin/bookings/${id}/refund`, data),
+};
+
+// ─── KYC ─────────────────────────────────────────────────────────────────────
+export const kycApi = {
+  getAll: (params?: any) => apiClient.get('/admin/kyc', { params }),
+  approve: (id: string) => apiClient.patch(`/admin/kyc/${id}/approve`),
+  reject: (id: string, reason: string) => apiClient.patch(`/admin/kyc/${id}/reject`, { reason }),
+};
+
+// ─── WALLET ───────────────────────────────────────────────────────────────────
+export const walletApi = {
+  getAll: (params?: any) => apiClient.get('/admin/wallets', { params }),
+  credit: (id: string, data: any) => apiClient.post(`/admin/wallets/${id}/credit`, data),
+  debit: (id: string, data: any) => apiClient.post(`/admin/wallets/${id}/debit`, data),
+  getTransactions: (id: string) => apiClient.get(`/admin/wallets/${id}/transactions`),
+};
+
+// ─── COMMISSION ───────────────────────────────────────────────────────────────
+export const commissionApi = {
+  getRules: () => apiClient.get('/admin/commission/rules'),
+  createRule: (data: any) => apiClient.post('/admin/commission/rules', data),
+  updateRule: (id: string, data: any) => apiClient.put(`/admin/commission/rules/${id}`, data),
+  deleteRule: (id: string) => apiClient.delete(`/admin/commission/rules/${id}`),
+};
+
+// ─── REPORTS ─────────────────────────────────────────────────────────────────
+export const reportsApi = {
+  getRevenue: (params?: any) => apiClient.get('/admin/reports/revenue', { params }),
+  getBookings: (params?: any) => apiClient.get('/admin/reports/bookings', { params }),
+  exportCsv: (type: string, params?: any) => apiClient.get(`/admin/reports/export/${type}`, { params, responseType: 'blob' }),
+};
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+export const notificationsApi = {
+  send: (data: any) => apiClient.post('/admin/notifications/send', data),
+  getAll: (params?: any) => apiClient.get('/admin/notifications', { params }),
+};
+
+// ─── PROMO ───────────────────────────────────────────────────────────────────
+export const promoApi = {
+  getAll: (params?: any) => apiClient.get('/admin/promos', { params }),
+  create: (data: any) => apiClient.post('/admin/promos', data),
+  update: (id: string, data: any) => apiClient.put(`/admin/promos/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/admin/promos/${id}`),
+};
+
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+export const settingsApi = {
+  get: () => apiClient.get('/admin/settings'),
+  update: (data: any) => apiClient.put('/admin/settings', data),
+  getPricingRules: () => apiClient.get('/admin/pricing'),
+  updatePricingRules: (data: any) => apiClient.put('/admin/pricing', data),
+};
+
+export default apiClient;
