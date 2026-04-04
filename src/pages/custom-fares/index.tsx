@@ -406,13 +406,14 @@ export default function CustomFaresPage() {
                 onChange={(e) => f('flightNumber', e.target.value)}
               />
             </Grid>
-            {/* Airline */}
+            {/* Airline / Agency Label */}
             <Grid size={6}>
               <TextField
-                label="Airline" fullWidth size="small"
-                placeholder="e.g. Air India Express"
+                label="Airline / Agency Name" fullWidth size="small"
+                placeholder="e.g. Tramps Aviation / Air India"
                 value={form.airline}
                 onChange={(e) => f('airline', e.target.value)}
+                helperText="Apni agency ka naam ya airline naam"
               />
             </Grid>
             {/* Origin */}

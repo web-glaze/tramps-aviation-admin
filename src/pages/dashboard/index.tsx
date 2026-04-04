@@ -84,7 +84,16 @@ export default function Dashboard() {
     dashboardApi.getStats()
       .then((res) => {
         const d = res.data?.data ?? res.data;
-        setStats(d?.summary || d?.stats || d);
+        // FIX: Backend returns { summary:{...}, recentBookings:[...], topAgents:[...] }
+        // Merge summary fields + recentBookings + topAgents into one stats object
+        const summary = d?.summary || d?.stats || d;
+        setStats({
+          ...summary,
+          // FIX: backend returns platformRevenue but frontend reads totalRevenue
+          totalRevenue: summary?.totalRevenue ?? summary?.platformRevenue ?? 0,
+          recentBookings: d?.recentBookings || [],
+          topAgents: d?.topAgents || [],
+        });
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -174,7 +183,7 @@ export default function Dashboard() {
                               {b.bookingRef || b._id?.slice(-8)}
                             </Typography>
                           </TableCell>
-                          <TableCell>{b.userId?.name || b.customerName || 'N/A'}</TableCell>
+                          <TableCell>{b.customerName || b.contactEmail || b.userId?.name || 'N/A'}</TableCell>
                           <TableCell>
                             <Chip label={b.type || 'Flight'} size="small" variant="outlined" />
                           </TableCell>
@@ -226,10 +235,10 @@ export default function Dashboard() {
                     </Avatar>
                     <Box flex={1} minWidth={0}>
                       <Typography variant="subtitle2" fontWeight={600} noWrap>
-                        {a.agencyName || a.userId?.name || 'Agent'}
+                        {a.agencyName || a.contactPerson || 'Agent'}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" noWrap>
-                        {a.agentId || a.email}
+                        {a.agentId || a.email || '—'}
                       </Typography>
                     </Box>
                     <Typography variant="subtitle2" fontWeight={700} color="success.main">
@@ -241,37 +250,68 @@ export default function Dashboard() {
               ))
             )}
           </MainCard>
-
-          {/* Quick Actions */}
-          <MainCard title="Quick Actions" sx={{ mt: 2.5 }}>
-            <Grid container spacing={1.5}>
-              {[
-                { label: 'Review KYC',     icon: SafetyCertificateOutlined, path: '/kyc',        color: '#fa8c16', bg: '#fff7e6' },
-                { label: 'Manage Wallets', icon: WalletOutlined,            path: '/wallet',     color: '#1890ff', bg: '#e6f4ff' },
-                { label: 'View Reports',   icon: BarChartOutlined,          path: '/reports',    color: '#722ed1', bg: '#f9f0ff' },
-                { label: 'Promo Codes',    icon: RiseOutlined,              path: '/promo',      color: '#52c41a', bg: '#f6ffed' },
-              ].map(({ label, icon: Icon, path, color, bg }) => (
-                <Grid size={6} key={label}>
-                  <Box
-                    onClick={() => navigate(path)}
-                    sx={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center',
-                      p: 2, borderRadius: 2, cursor: 'pointer', border: '1px solid', borderColor: 'divider',
-                      transition: 'all 0.2s',
-                      '&:hover': { borderColor: 'primary.light', bgcolor: 'primary.lighter', transform: 'translateY(-2px)' },
-                    }}
-                  >
-                    <Box sx={{ width: 40, height: 40, borderRadius: 1.5, bgcolor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-                      <Icon style={{ fontSize: 18, color }} />
-                    </Box>
-                    <Typography variant="caption" fontWeight={600} align="center">{label}</Typography>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </MainCard>
         </Grid>
       </Grid>
+
+      {/* Quick Actions — Full Width Row */}
+      <MainCard title="Quick Actions" sx={{ mt: 3 }}>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'nowrap', overflowX: 'auto' }}>
+          {[
+            { label: 'Review KYC',        icon: SafetyCertificateOutlined, path: '/kyc',        color: '#fa8c16', bg: '#fff7e6', desc: 'Verify agent documents' },
+            { label: 'Manage Wallets',    icon: WalletOutlined,            path: '/wallet',     color: '#1890ff', bg: '#e6f4ff', desc: 'Credit / debit agent wallets' },
+            { label: 'All Bookings',      icon: BookOutlined,              path: '/bookings',   color: '#13c2c2', bg: '#e6fffb', desc: 'View & manage bookings' },
+            { label: 'Agents (B2B)',       icon: TeamOutlined,              path: '/agents',     color: '#722ed1', bg: '#f9f0ff', desc: 'Manage travel agents' },
+            { label: 'Commission Rules',  icon: BarChartOutlined,          path: '/commission', color: '#52c41a', bg: '#f6ffed', desc: 'Set commission rates' },
+            { label: 'View Reports',      icon: RiseOutlined,              path: '/reports',    color: '#eb2f96', bg: '#fff0f6', desc: 'Analytics & insights' },
+            { label: 'Promo Codes',       icon: DollarOutlined,            path: '/promo',      color: '#fa541c', bg: '#fff2e8', desc: 'Manage discount codes' },
+            { label: 'Custom Fares',      icon: BarChartOutlined,          path: '/custom-fares', color: '#08979c', bg: '#e6fffb', desc: 'Set special fares' },
+          ].map(({ label, icon: Icon, path, color, bg, desc }) => (
+            <Box
+              key={label}
+              onClick={() => navigate(path)}
+              sx={{
+                flex: '1 1 120px',
+                minWidth: 120,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                p: 2.5,
+                borderRadius: 2,
+                cursor: 'pointer',
+                border: '1px solid',
+                borderColor: 'divider',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  borderColor: color,
+                  transform: 'translateY(-3px)',
+                  boxShadow: `0 4px 20px ${color}22`,
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  bgcolor: bg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mb: 1.5,
+                }}
+              >
+                <Icon style={{ fontSize: 22, color }} />
+              </Box>
+              <Typography variant="body2" fontWeight={700} align="center" sx={{ mb: 0.5 }}>
+                {label}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" align="center" sx={{ lineHeight: 1.3 }}>
+                {desc}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </MainCard>
     </Box>
   );
 }

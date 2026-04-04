@@ -14,7 +14,7 @@ import { agentsApi } from '../../api';
 import MainCard from '../../components/MainCard';
 
 const statusColor: Record<string, any> = {
-  active: 'success', suspended: 'error', pending: 'warning', inactive: 'default',
+  active: 'success', suspended: 'error', pending: 'warning', inactive: 'warning',
 };
 
 export default function AgentsPage() {
@@ -103,7 +103,7 @@ export default function AgentsPage() {
             >
               <MenuItem value="">All</MenuItem>
               <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="pending">Pending</MenuItem>
+              <MenuItem value="inactive">Inactive / Pending</MenuItem>
               <MenuItem value="suspended">Suspended</MenuItem>
             </Select>
           </FormControl>
@@ -153,14 +153,14 @@ export default function AgentsPage() {
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.light', fontSize: '0.75rem' }}>
-                          {(a.userId?.name || a.name || 'A').charAt(0).toUpperCase()}
+                          {(a.contactPerson || a.userId?.name || a.name || 'A').charAt(0).toUpperCase()}
                         </Avatar>
                         <Box>
                           <Typography variant="subtitle2" fontWeight={600}>
-                            {a.userId?.name || a.name || '—'}
+                            {a.contactPerson || a.userId?.name || a.name || '—'}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {a.userId?.email || a.email}
+                            {a.email || a.userId?.email}
                           </Typography>
                         </Box>
                       </Box>
@@ -245,11 +245,11 @@ export default function AgentsPage() {
           {selectedAgent && (
             <Grid container spacing={2}>
               {[
-                ['Name', selectedAgent.userId?.name || selectedAgent.name],
-                ['Email', selectedAgent.userId?.email || selectedAgent.email],
+                ['Name', selectedAgent.contactPerson || selectedAgent.userId?.name || selectedAgent.name],
+                ['Email', selectedAgent.email || selectedAgent.userId?.email],
                 ['Agency', selectedAgent.agencyName],
                 ['Agent ID', selectedAgent.agentId],
-                ['Phone', selectedAgent.phone || selectedAgent.userId?.phone],
+                ['Phone', selectedAgent.phone],
                 ['Status', selectedAgent.status],
                 ['KYC Status', selectedAgent.kycStatus],
                 ['Wallet Balance', `₹${(selectedAgent.walletBalance || 0).toLocaleString('en-IN')}`],

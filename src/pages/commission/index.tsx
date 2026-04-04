@@ -9,7 +9,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { commissionApi } from '../../api';
 import MainCard from '../../components/MainCard';
 
-const emptyRule = { name: '', type: 'flight', commissionType: 'percentage', value: '', description: '' };
+const emptyRule = { name: '', type: 'flight', commissionType: 'percentage', commissionValue: '', description: '' };
 
 export default function CommissionPage() {
   const [rules, setRules] = useState<any[]>([]);
@@ -33,7 +33,7 @@ export default function CommissionPage() {
   useEffect(() => { fetchRules(); }, []);
 
   const openCreate = () => { setEditRule(null); setForm(emptyRule); setDialogOpen(true); };
-  const openEdit = (rule: any) => { setEditRule(rule); setForm({ name: rule.name, type: rule.type, commissionType: rule.commissionType, value: rule.value, description: rule.description || '' }); setDialogOpen(true); };
+  const openEdit = (rule: any) => { setEditRule(rule); setForm({ name: rule.name, type: rule.type, commissionType: rule.commissionType, commissionValue: rule.commissionValue || rule.value || '', description: rule.description || '' }); setDialogOpen(true); };
 
   const handleSave = async () => {
     try {
@@ -108,7 +108,7 @@ export default function CommissionPage() {
                     </TableCell>
                     <TableCell>
                       <Typography fontWeight={700} color="primary">
-                        {r.commissionType === 'percentage' ? `${r.value}%` : `₹${r.value}`}
+                        {r.commissionType === 'percentage' ? `${r.commissionValue || r.value || 0}%` : `₹${r.commissionValue || r.value || 0}`}
                       </Typography>
                     </TableCell>
                     <TableCell>{r.description || '—'}</TableCell>
@@ -160,7 +160,7 @@ export default function CommissionPage() {
             <Grid size={12}>
               <TextField
                 fullWidth label={form.commissionType === 'percentage' ? 'Commission Value (%)' : 'Commission Value (₹)'}
-                type="number" value={form.value} onChange={(e) => setForm(f => ({ ...f, value: e.target.value }))}
+                type="number" value={form.commissionValue} onChange={(e) => setForm(f => ({ ...f, commissionValue: e.target.value }))}
                 inputProps={{ min: 0, max: form.commissionType === 'percentage' ? 100 : undefined }}
               />
             </Grid>
@@ -171,7 +171,7 @@ export default function CommissionPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave} disabled={!form.name || !form.value}>
+          <Button variant="contained" onClick={handleSave} disabled={!form.name || !form.commissionValue}>
             {editRule ? 'Update' : 'Create'}
           </Button>
         </DialogActions>

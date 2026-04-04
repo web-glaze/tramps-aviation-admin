@@ -128,8 +128,8 @@ export default function BookingsPage() {
                         <Typography variant="body2" fontWeight={700} color="primary">{b.bookingRef || b._id?.slice(-8)}</Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={600}>{b.userId?.name || b.customerName || '—'}</Typography>
-                        <Typography variant="caption" color="text.secondary">{b.userId?.email || '—'}</Typography>
+                        <Typography variant="body2" fontWeight={600}>{b.customerName || b.contactEmail || '—'}</Typography>
+                        <Typography variant="caption" color="text.secondary">{b.customerEmail || b.contactEmail || '—'}</Typography>
                       </TableCell>
                       <TableCell>
                         <Chip label={b.type || 'flight'} size="small" variant="outlined" color="primary" />
@@ -137,7 +137,7 @@ export default function BookingsPage() {
                       <TableCell>
                         <Typography fontWeight={700}>₹{(b.totalAmount || 0).toLocaleString('en-IN')}</Typography>
                       </TableCell>
-                      <TableCell>{b.agentId?.agencyName || b.agentId?.userId?.name || 'Direct'}</TableCell>
+                      <TableCell>{b.agentId?.agencyName || b.agentId?.contactPerson || 'Direct'}</TableCell>
                       <TableCell>{b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-IN') : '—'}</TableCell>
                       <TableCell><Chip label={s.label} color={s.color} size="small" /></TableCell>
                       <TableCell align="center">
@@ -175,12 +175,12 @@ export default function BookingsPage() {
             <Grid container spacing={2}>
               {[
                 ['Booking Ref', selected.bookingRef || selected._id?.slice(-8)],
-                ['Customer', selected.userId?.name || '—'],
-                ['Email', selected.userId?.email || '—'],
+                ['Customer', selected.customerName || selected.contactEmail || '—'],
+                ['Email', selected.customerEmail || selected.contactEmail || '—'],
                 ['Type', selected.type || 'Flight'],
                 ['Amount', `₹${(selected.totalAmount || 0).toLocaleString('en-IN')}`],
                 ['Status', selected.status],
-                ['Agent', selected.agentId?.agencyName || 'Direct'],
+                ['Agent', selected.agentId?.agencyName || selected.agentId?.contactPerson || 'Direct'],
                 ['Date', selected.createdAt ? new Date(selected.createdAt).toLocaleString('en-IN') : '—'],
                 ['Cancellation Reason', selected.cancellationReason || 'N/A'],
               ].map(([l, v]) => (

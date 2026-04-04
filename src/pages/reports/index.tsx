@@ -118,7 +118,7 @@ export default function ReportsPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartRevenue}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#888" }} tickFormatter={(v) => v ? v.slice(5) : v} />
                   <YAxis yAxisId="left" tick={{ fontSize: 12 }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
                   <RechartTip />
@@ -175,9 +175,9 @@ export default function ReportsPage() {
                             {i + 1}
                           </Box>
                         </TableCell>
-                        <TableCell><Typography fontWeight={600}>{a.agencyName || a.name}</Typography></TableCell>
-                        <TableCell>{a.totalBookings || 0}</TableCell>
-                        <TableCell><Typography fontWeight={700}>₹{(a.totalRevenue || 0).toLocaleString('en-IN')}</Typography></TableCell>
+                        <TableCell><Typography fontWeight={600}>{a.agencyName || a.name || "—"}</Typography></TableCell>
+                        <TableCell>{a.totalBookings || a.bookings || 0}</TableCell>
+                        <TableCell><Typography fontWeight={700}>₹{(a.totalRevenue || a.revenue || 0).toLocaleString('en-IN')}</Typography></TableCell>
                         <TableCell>₹{(a.commissionEarned || 0).toLocaleString('en-IN')}</TableCell>
                         <TableCell>₹{(a.avgBookingValue || 0).toLocaleString('en-IN')}</TableCell>
                       </TableRow>

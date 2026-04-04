@@ -122,17 +122,17 @@ export default function WalletPage() {
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Avatar sx={{ width: 32, height: 32, bgcolor: 'info.light', fontSize: '0.75rem' }}>
-                          {(w.userId?.name || 'U').charAt(0).toUpperCase()}
+                          {(w.agentId?.contactPerson || w.agentId?.agencyName || 'A').charAt(0).toUpperCase()}
                         </Avatar>
                         <Box>
-                          <Typography variant="subtitle2" fontWeight={600}>{w.userId?.name || '—'}</Typography>
-                          <Typography variant="caption" color="text.secondary">{w.userId?.email || '—'}</Typography>
+                          <Typography variant="subtitle2" fontWeight={600}>{w.agentId?.contactPerson || w.agentId?.agencyName || '—'}</Typography>
+                          <Typography variant="caption" color="text.secondary">{w.agentId?.email || '—'}</Typography>
                         </Box>
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Chip label={w.userType || w.userId?.role || 'agent'} size="small" variant="outlined"
-                        color={w.userId?.role === 'agent' ? 'primary' : 'secondary'} />
+                      <Chip label={w.agentId?.status || 'agent'} size="small" variant="outlined"
+                        color={w.agentId?.status === 'active' ? 'success' : 'default'} />
                     </TableCell>
                     <TableCell>
                       <Typography fontWeight={700} color={w.balance >= 0 ? 'success.main' : 'error.main'}>
@@ -170,7 +170,7 @@ export default function WalletPage() {
         <DialogTitle>{txType === 'credit' ? '💰 Credit Wallet' : '💸 Debit Wallet'}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            User: <strong>{txWallet?.userId?.name}</strong> | Current Balance: <strong>₹{(txWallet?.balance || 0).toLocaleString('en-IN')}</strong>
+            User: <strong>{txWallet?.agentId?.contactPerson || txWallet?.agentId?.agencyName}</strong> | Current Balance: <strong>₹{(txWallet?.balance || 0).toLocaleString('en-IN')}</strong>
           </Typography>
           <TextField
             fullWidth label="Amount (₹)" type="number" value={txAmount}
@@ -196,7 +196,7 @@ export default function WalletPage() {
 
       {/* Transaction History Dialog */}
       <Dialog open={histOpen} onClose={() => setHistOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Transaction History — {txWallet?.userId?.name}</DialogTitle>
+        <DialogTitle>Transaction History — {txWallet?.agentId?.contactPerson || txWallet?.agentId?.agencyName}</DialogTitle>
         <DialogContent dividers>
           {histLoading ? (
             Array(5).fill(0).map((_, i) => <Box key={i} sx={{ mb: 1 }}><Skeleton height={40} /></Box>)
