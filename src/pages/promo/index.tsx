@@ -23,8 +23,9 @@ export default function PromoPage() {
     setLoading(true);
     try {
       const res = await promoApi.getAll();
-      const d = res.data?.data || res.data;
-      setPromos(d?.promos || d || []);
+      const raw = res.data?.data ?? res.data;
+      const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+      setPromos(arr);
     } catch { setPromos([]); }
     finally { setLoading(false); }
   };

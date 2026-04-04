@@ -115,4 +115,16 @@ export const settingsApi = {
   updatePricingRules: (data: any) => apiClient.put('/admin/pricing', data),
 };
 
+// ─── CUSTOM FARES ─────────────────────────────────────────────────────────────
+export const customFaresApi = {
+  getAll: (params?: any) => apiClient.get('/admin/custom-fares', { params }),
+  getStats: () => apiClient.get('/admin/custom-fares/stats'),
+  getSectors: () => apiClient.get('/admin/custom-fares/sectors'),
+  create: (data: any) => apiClient.post('/admin/custom-fares', data),
+  bulkCreate: (fares: any[]) => apiClient.post('/admin/custom-fares/bulk', { fares }),
+  update: (id: string, data: any) => apiClient.put(`/admin/custom-fares/${id}`, data),
+  toggle: (id: string) => apiClient.patch(`/admin/custom-fares/${id}/toggle`),
+  delete: (id: string) => apiClient.delete(`/admin/custom-fares/${id}`),
+};
+
 export default apiClient;

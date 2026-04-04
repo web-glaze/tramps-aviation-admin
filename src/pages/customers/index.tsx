@@ -23,9 +23,10 @@ export default function CustomersPage() {
     setLoading(true);
     try {
       const res = await customersApi.getAll({ page, limit: 10, search });
-      const d = res.data?.data || res.data;
-      setCustomers(d?.customers || d?.items || d || []);
-      setTotal(d?.total || 0);
+      const raw = res.data?.data ?? res.data;
+      const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+      setCustomers(arr);
+      setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setCustomers([]); }
     finally { setLoading(false); }
   };

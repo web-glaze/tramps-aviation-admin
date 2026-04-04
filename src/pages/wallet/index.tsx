@@ -29,9 +29,10 @@ export default function WalletPage() {
     setLoading(true);
     try {
       const res = await walletApi.getAll({ page, limit: 10, search });
-      const d = res.data?.data || res.data;
-      setWallets(d?.wallets || d?.items || d || []);
-      setTotal(d?.total || 0);
+      const raw = res.data?.data ?? res.data;
+      const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+      setWallets(arr);
+      setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setWallets([]); }
     finally { setLoading(false); }
   };
@@ -66,8 +67,9 @@ export default function WalletPage() {
     setHistLoading(true);
     try {
       const res = await walletApi.getTransactions(wallet._id);
-      const d = res.data?.data || res.data;
-      setHistory(d?.transactions || d || []);
+      const raw = res.data?.data ?? res.data;
+      const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+      setHistory(arr);
     } catch { setHistory([]); }
     finally { setHistLoading(false); }
   };

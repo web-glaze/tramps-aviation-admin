@@ -27,8 +27,9 @@ export default function KycPage() {
     setLoading(true);
     try {
       const res = await kycApi.getAll({ page, limit: 10, status: statusFilter });
-      const d = res.data?.data || res.data;
-      setKycs(d?.kycs || d?.items || d || []);
+      const raw = res.data?.data ?? res.data;
+      const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+      setKycs(arr);
     } catch { setKycs([]); }
     finally { setLoading(false); }
   };

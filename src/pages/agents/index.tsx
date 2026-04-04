@@ -32,9 +32,10 @@ export default function AgentsPage() {
     setLoading(true);
     try {
       const res = await agentsApi.getAll({ page, limit: 10, search, status: statusFilter });
-      const d = res.data?.data || res.data;
-      setAgents(d?.agents || d?.items || d || []);
-      setTotal(d?.total || 0);
+      const raw = res.data?.data ?? res.data;
+      const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+      setAgents(arr);
+      setTotal(raw?.pagination?.total || arr.length || 0);
     } catch {
       setAgents([]);
     } finally {

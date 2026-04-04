@@ -12,6 +12,7 @@ import ReportsPage from '../pages/reports';
 import PromoPage from '../pages/promo';
 import NotificationsPage from '../pages/notifications';
 import SettingsPage from '../pages/settings';
+import CustomFaresPage from '../pages/custom-fares';
 import { FlightsPage, HotelsPage, InsurancePage, RefundsPage, SubagentsPage } from '../pages/misc';
 
 const router = createBrowserRouter([
@@ -40,6 +41,7 @@ const router = createBrowserRouter([
       { path: 'promo', element: <PromoPage /> },
       { path: 'notifications', element: <NotificationsPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'custom-fares', element: <CustomFaresPage /> },
     ],
   },
 ]);

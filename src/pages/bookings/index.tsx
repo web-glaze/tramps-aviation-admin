@@ -33,9 +33,10 @@ export default function BookingsPage() {
     setLoading(true);
     try {
       const res = await bookingsApi.getAll({ page, limit: 10, search, status: statusFilter, type: typeFilter });
-      const d = res.data?.data || res.data;
-      setBookings(d?.bookings || d?.items || d || []);
-      setTotal(d?.total || 0);
+      const raw = res.data?.data ?? res.data;
+      const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+      setBookings(arr);
+      setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setBookings([]); }
     finally { setLoading(false); }
   };

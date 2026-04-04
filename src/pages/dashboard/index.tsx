@@ -83,7 +83,7 @@ export default function Dashboard() {
   useEffect(() => {
     dashboardApi.getStats()
       .then((res) => {
-        const d = res.data?.data || res.data;
+        const d = res.data?.data ?? res.data;
         setStats(d?.summary || d?.stats || d);
       })
       .catch(() => {})

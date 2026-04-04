@@ -23,8 +23,9 @@ export default function CommissionPage() {
     setLoading(true);
     try {
       const res = await commissionApi.getRules();
-      const d = res.data?.data || res.data;
-      setRules(d?.rules || d || []);
+      const raw = res.data?.data ?? res.data;
+      const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+      setRules(arr);
     } catch { setRules([]); }
     finally { setLoading(false); }
   };
