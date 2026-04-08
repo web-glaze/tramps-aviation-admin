@@ -14,11 +14,11 @@ const BookingPages = {
       url: '/bookings',
       icon: BookOutlined,
     },
-    {
-      id: 'custom-fares',
-      title: 'Custom Fares',
+      {
+        id: 'tramps-fares',
+      title: 'Tramps Aviation Tickets',
       type: 'item',
-      url: '/custom-fares',
+      url: '/tramps-fares',
       icon: TagOutlined,
     },
     {

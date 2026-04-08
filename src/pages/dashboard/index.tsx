@@ -264,7 +264,7 @@ export default function Dashboard() {
             { label: 'Commission Rules',  icon: BarChartOutlined,          path: '/commission', color: '#52c41a', bg: '#f6ffed', desc: 'Set commission rates' },
             { label: 'View Reports',      icon: RiseOutlined,              path: '/reports',    color: '#eb2f96', bg: '#fff0f6', desc: 'Analytics & insights' },
             { label: 'Promo Codes',       icon: DollarOutlined,            path: '/promo',      color: '#fa541c', bg: '#fff2e8', desc: 'Manage discount codes' },
-            { label: 'Custom Fares',      icon: BarChartOutlined,          path: '/custom-fares', color: '#08979c', bg: '#e6fffb', desc: 'Set special fares' },
+            { label: 'Tramps Aviation Fares',      icon: BarChartOutlined,          path: '/tramps-fares', color: '#08979c', bg: '#e6fffb', desc: 'Set special fares' },
           ].map(({ label, icon: Icon, path, color, bg, desc }) => (
             <Box
               key={label}

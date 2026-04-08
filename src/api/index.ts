@@ -116,15 +116,23 @@ export const settingsApi = {
 };
 
 // ─── CUSTOM FARES ─────────────────────────────────────────────────────────────
-export const customFaresApi = {
-  getAll: (params?: any) => apiClient.get('/admin/custom-fares', { params }),
-  getStats: () => apiClient.get('/admin/custom-fares/stats'),
-  getSectors: () => apiClient.get('/admin/custom-fares/sectors'),
-  create: (data: any) => apiClient.post('/admin/custom-fares', data),
-  bulkCreate: (fares: any[]) => apiClient.post('/admin/custom-fares/bulk', { fares }),
-  update: (id: string, data: any) => apiClient.put(`/admin/custom-fares/${id}`, data),
-  toggle: (id: string) => apiClient.patch(`/admin/custom-fares/${id}/toggle`),
-  delete: (id: string) => apiClient.delete(`/admin/custom-fares/${id}`),
+export const trampsAviationFaresApi = {
+  getAll: (params?: any) => apiClient.get('/admin/tramps-fares', { params }),
+  getStats: () => apiClient.get('/admin/tramps-fares/stats'),
+  getSectors: () => apiClient.get('/admin/tramps-fares/sectors'),
+  create: (data: any) => apiClient.post('/admin/tramps-fares', data),
+  bulkCreate: (fares: any[]) => apiClient.post('/admin/tramps-fares/bulk', { fares }),
+  update: (id: string, data: any) => apiClient.put(`/admin/tramps-fares/${id}`, data),
+  toggle: (id: string) => apiClient.patch(`/admin/tramps-fares/${id}/toggle`),
+  delete: (id: string) => apiClient.delete(`/admin/tramps-fares/${id}`),
 };
 
 export default apiClient;
+
+export const mockDataApi = {
+  getAll:  (type?: string) => apiClient.get('/admin/mock-data', { params: type ? { type } : {} }),
+  create:  (data: any)     => apiClient.post('/admin/mock-data', data),
+  update:  (id: string, data: any) => apiClient.put(`/admin/mock-data/${id}`, data),
+  toggle:  (id: string)    => apiClient.put(`/admin/mock-data/${id}/toggle`),
+  delete:  (id: string)    => apiClient.delete(`/admin/mock-data/${id}`),
+};
