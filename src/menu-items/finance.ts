@@ -61,6 +61,35 @@ const MarketingPages = {
   ],
 };
 
+const ContentPages = {
+  id: 'content-group',
+  title: 'Homepage Content',
+  type: 'group',
+  children: [
+    {
+      id: 'reviews',
+      title: '⭐ Reviews',
+      type: 'item',
+      url: '/reviews',
+      icon: GiftOutlined,
+    },
+    {
+      id: 'popular-content',
+      title: '🌟 Popular Content',
+      type: 'item',
+      url: '/popular-content',
+      icon: GiftOutlined,
+    },
+    {
+      id: 'tramps-fares',
+      title: 'Series Fares',
+      type: 'item',
+      url: '/tramps-fares',
+      icon: PercentageOutlined,
+    },
+  ],
+};
+
 const SettingPages = {
   id: 'setting-group',
   title: 'Settings',
@@ -76,4 +105,4 @@ const SettingPages = {
   ],
 };
 
-export { FinancePages, MarketingPages, SettingPages };
+export { FinancePages, MarketingPages, ContentPages, SettingPages };

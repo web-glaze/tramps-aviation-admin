@@ -136,3 +136,13 @@ export const mockDataApi = {
   toggle:  (id: string)    => apiClient.put(`/admin/mock-data/${id}/toggle`),
   delete:  (id: string)    => apiClient.delete(`/admin/mock-data/${id}`),
 };
+
+// ─── REVIEWS ──────────────────────────────────────────────────────────────────
+export const reviewsApi = {
+  getPending:  (params?: any) => apiClient.get('/reviews/admin/pending', { params }),
+  getAll:      (params?: any) => apiClient.get('/reviews/admin/all', { params }),
+  approve:     (id: string)  => apiClient.post(`/reviews/admin/${id}/approve`),
+  hide:        (id: string)  => apiClient.post(`/reviews/admin/${id}/hide`),
+  delete:      (id: string)  => apiClient.delete(`/reviews/admin/${id}`),
+  respond:     (id: string, response: string) => apiClient.post(`/reviews/admin/${id}/respond`, { response }),
+};

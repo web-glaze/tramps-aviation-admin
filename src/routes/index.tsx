@@ -13,6 +13,8 @@ import PromoPage from '../pages/promo';
 import NotificationsPage from '../pages/notifications';
 import SettingsPage from '../pages/settings';
 import TrampsAviationFaresPage from '../pages/tramps-fares';
+import PopularContentPage from '../pages/popular-content';
+import ReviewsPage from '../pages/reviews';
 import { FlightsPage, HotelsPage, InsurancePage, RefundsPage, SubagentsPage } from '../pages/misc';
 import { Box, Typography, Button } from '@mui/material';
 
@@ -67,6 +69,8 @@ const router = createBrowserRouter([
       { path: 'notifications', element: <NotificationsPage />, errorElement: <PageError /> },
       { path: 'settings', element: <SettingsPage />, errorElement: <PageError /> },
       { path: 'tramps-fares', element: <TrampsAviationFaresPage />, errorElement: <PageError /> },
+      { path: 'popular-content', element: <PopularContentPage />, errorElement: <PageError /> },
+      { path: 'reviews', element: <ReviewsPage />, errorElement: <PageError /> },
     ],
   },
 ]);
