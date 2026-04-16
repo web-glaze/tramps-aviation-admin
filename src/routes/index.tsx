@@ -15,6 +15,8 @@ import SettingsPage from '../pages/settings';
 import TrampsAviationFaresPage from '../pages/tramps-fares';
 import PopularContentPage from '../pages/popular-content';
 import ReviewsPage from '../pages/reviews';
+import PagesManager from '../pages/cms';
+import EnquiriesPage from '../pages/enquiries';
 import { FlightsPage, HotelsPage, InsurancePage, RefundsPage, SubagentsPage } from '../pages/misc';
 import { Box, Typography, Button } from '@mui/material';
 
@@ -71,6 +73,8 @@ const router = createBrowserRouter([
       { path: 'tramps-fares', element: <TrampsAviationFaresPage />, errorElement: <PageError /> },
       { path: 'popular-content', element: <PopularContentPage />, errorElement: <PageError /> },
       { path: 'reviews', element: <ReviewsPage />, errorElement: <PageError /> },
+      { path: 'pages', element: <PagesManager />, errorElement: <PageError /> },
+      { path: 'enquiries', element: <EnquiriesPage />, errorElement: <PageError /> },
     ],
   },
 ]);

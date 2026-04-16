@@ -1,6 +1,7 @@
 import {
   WalletOutlined, PercentageOutlined, BarChartOutlined,
   GiftOutlined, RollbackOutlined, BellOutlined, SettingOutlined,
+  FileTextOutlined, MailOutlined,
 } from '@ant-design/icons';
 
 const FinancePages = {
@@ -86,6 +87,20 @@ const ContentPages = {
       type: 'item',
       url: '/tramps-fares',
       icon: PercentageOutlined,
+    },
+    {
+      id: 'pages',
+      title: '📋 Pages & Policies',
+      type: 'item',
+      url: '/pages',
+      icon: FileTextOutlined,
+    },
+    {
+      id: 'enquiries',
+      title: '📩 Enquiries & Contact',
+      type: 'item',
+      url: '/enquiries',
+      icon: MailOutlined,
     },
   ],
 };

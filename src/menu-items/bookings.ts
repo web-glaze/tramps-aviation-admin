@@ -1,5 +1,5 @@
 import {
-  BookOutlined, CarOutlined, HomeOutlined, InsuranceOutlined, TagOutlined,
+  BookOutlined, CarOutlined, HomeOutlined, InsuranceOutlined,
 } from '@ant-design/icons';
 
 const BookingPages = {
@@ -13,13 +13,6 @@ const BookingPages = {
       type: 'item',
       url: '/bookings',
       icon: BookOutlined,
-    },
-      {
-        id: 'tramps-fares',
-      title: 'Tramps Aviation Tickets',
-      type: 'item',
-      url: '/tramps-fares',
-      icon: TagOutlined,
     },
     {
       id: 'flights',

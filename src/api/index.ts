@@ -46,6 +46,13 @@ export const agentsApi = {
   suspend: (id: string) => apiClient.patch(`/admin/agents/${id}/suspend`),
   delete: (id: string) => apiClient.delete(`/admin/agents/${id}`),
   updateCommission: (id: string, data: any) => apiClient.patch(`/admin/agents/${id}/commission`, data),
+  walletCredit: (agentId: string, amount: number, note: string) =>
+    apiClient.post('/admin/wallet/adjust', { agentId, amount, type: 'credit', note }),
+  walletDebit: (agentId: string, amount: number, note: string) =>
+    apiClient.post('/admin/wallet/adjust', { agentId, amount, type: 'debit', note }),
+  // Alias: credit by agentCode (TAHP00001) — more reliable than MongoDB id
+  walletCreditByCode: (agentCode: string, amount: number, note: string) =>
+    apiClient.post('/admin/wallet/adjust', { agentId: agentCode, amount, type: 'credit', note }),
 };
 
 // ─── CUSTOMERS ───────────────────────────────────────────────────────────────
@@ -125,6 +132,16 @@ export const trampsAviationFaresApi = {
   update: (id: string, data: any) => apiClient.put(`/admin/tramps-fares/${id}`, data),
   toggle: (id: string) => apiClient.patch(`/admin/tramps-fares/${id}/toggle`),
   delete: (id: string) => apiClient.delete(`/admin/tramps-fares/${id}`),
+};
+
+
+// ─── CMS ──────────────────────────────────────────────────────────────────────
+export const cmsApi = {
+  getAll:   ()                        => apiClient.get('/pages/admin'),
+  getPage:  (slug: string)            => apiClient.get(`/pages/admin/${slug}`),
+  upsert:   (slug: string, data: any) => apiClient.put(`/pages/admin/${slug}`, data),
+  delete:   (slug: string)            => apiClient.delete(`/pages/admin/${slug}`),
+  seed:     ()                        => apiClient.post('/pages/admin/seed'),
 };
 
 export default apiClient;
