@@ -87,10 +87,16 @@ export const walletApi = {
 
 // ─── COMMISSION ───────────────────────────────────────────────────────────────
 export const commissionApi = {
-  getRules: () => apiClient.get('/admin/commission/rules'),
+  getRules: (params?: any) => apiClient.get('/admin/commission/rules', { params }),
+  getRule: (id: string) => apiClient.get(`/admin/commission/rules/${id}`),
   createRule: (data: any) => apiClient.post('/admin/commission/rules', data),
   updateRule: (id: string, data: any) => apiClient.put(`/admin/commission/rules/${id}`, data),
   deleteRule: (id: string) => apiClient.delete(`/admin/commission/rules/${id}`),
+  toggleRule: (id: string) => apiClient.patch(`/admin/commission/rules/${id}/toggle`),
+  duplicateRule: (id: string) => apiClient.post(`/admin/commission/rules/${id}/duplicate`),
+  getStats: () => apiClient.get('/admin/commission/stats'),
+  preview: (data: any) => apiClient.post('/admin/commission/preview', data),
+  bulkCreate: (rules: any[]) => apiClient.post('/admin/commission/rules/bulk', { rules }),
 };
 
 // ─── REPORTS ─────────────────────────────────────────────────────────────────
