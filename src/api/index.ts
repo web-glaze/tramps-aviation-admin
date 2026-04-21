@@ -138,6 +138,10 @@ export const trampsAviationFaresApi = {
   update: (id: string, data: any) => apiClient.put(`/admin/tramps-fares/${id}`, data),
   toggle: (id: string) => apiClient.patch(`/admin/tramps-fares/${id}/toggle`),
   delete: (id: string) => apiClient.delete(`/admin/tramps-fares/${id}`),
+  // PNR Pool management
+  addPnrs: (id: string, pnrs: string[]) => apiClient.post(`/admin/tramps-fares/${id}/pnr-pool`, { pnrs }),
+  removePnr: (id: string, pnr: string) => apiClient.delete(`/admin/tramps-fares/${id}/pnr-pool/${pnr}`),
+  clearPnrPool: (id: string) => apiClient.delete(`/admin/tramps-fares/${id}/pnr-pool`),
 };
 
 

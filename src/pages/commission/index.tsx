@@ -685,6 +685,33 @@ export default function CommissionPage() {
         </Grid>
       </Paper>
 
+      {/* ── How Priority Works — quick reference ──────────────── */}
+      <Paper sx={{ p: 2, mb: 2, bgcolor: 'info.lighter', border: '1px solid', borderColor: 'info.light' }}>
+        <Typography variant="subtitle2" color="info.dark" gutterBottom>
+          📋 Commission Rules — Quick Reference
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Typography variant="caption" color="info.dark" display="block">
+              <b>Priority order (highest wins):</b> Agent-specific (50+) → Airline-specific (10–49) → Route-specific (10–49) → Seasonal (10–49) → Global (0–9)
+            </Typography>
+            <Typography variant="caption" color="info.dark" display="block" sx={{ mt:0.5 }}>
+              <b>Effect:</b> After a booking confirms, the matching rule automatically credits commission to the agent's wallet. Agents see it in their wallet history and on the e-ticket.
+            </Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Typography variant="caption" color="info.dark" display="block">
+              <b>Example setup:</b>
+            </Typography>
+            <Typography variant="caption" color="info.dark" display="block" sx={{ pl:1 }}>
+              • "Base Commission" → Global, 3%, Priority 0 (applies to all)<br/>
+              • "IndiGo Bonus" → Airline (IndiGo), 5%, Priority 10 (overrides global for IndiGo)<br/>
+              • "Agent Rahul Special" → Agent-specific, 7%, Priority 50 (Rahul always gets 7%)
+            </Typography>
+          </Grid>
+        </Grid>
+      </Paper>
+
       {/* ── Rules Table ────────────────────────────────────── */}
       <MainCard>
         <TableContainer>
@@ -879,6 +906,30 @@ export default function CommissionPage() {
             always beats generic.
           </Typography>
         </DialogTitle>
+        {/* How commission works — inline explainer */}
+        <Box sx={{ mx:3, mt:1, mb:0, p:2, bgcolor:'primary.lighter', borderRadius:2, border:'1px solid', borderColor:'primary.light' }}>
+          <Typography variant="caption" color="primary.dark" fontWeight={700} display="block" gutterBottom>
+            💡 How Commission Rules Work
+          </Typography>
+          <Typography variant="caption" color="primary.dark" display="block" sx={{ mb:0.5 }}>
+            <b>Rule Type</b> decides <i>which bookings</i> this rule applies to. Examples:
+          </Typography>
+          <Typography variant="caption" color="primary.dark" display="block" sx={{ mb:0.5, pl:1.5 }}>
+            • <b>Global</b> → applies to ALL bookings (use as your base/default rate)<br/>
+            • <b>Airline Specific</b> → only when agent books that airline (e.g. IndiGo gets 3%)<br/>
+            • <b>Agent Specific</b> → only for one agent (your top agent gets extra 2%)<br/>
+            • <b>Route Specific</b> → only DEL→BOM bookings get this rate<br/>
+            • <b>Seasonal</b> → only between two dates (e.g. festive season bonus)
+          </Typography>
+          <Typography variant="caption" color="primary.dark" display="block" sx={{ mb:0.5 }}>
+            <b>Priority (0–100)</b>: When multiple rules match, the <b>highest priority wins</b>.
+            Set Global to 0, Airline-specific to 10, Agent-specific to 50 — then agent-specific always overrides.
+          </Typography>
+          <Typography variant="caption" color="primary.dark" display="block">
+            <b>Effect on ticket</b>: After booking confirms, commission is credited to the agent's wallet automatically.
+            Agent sees it in their wallet & on the ticket as "Commission Earned".
+          </Typography>
+        </Box>
         {saving && <LinearProgress />}
         <DialogContent dividers>
           <Grid container spacing={2.5} sx={{ mt: 0.25 }}>
@@ -909,7 +960,7 @@ export default function CommissionPage() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, priority: e.target.value }))
                 }
-                helperText="Higher wins (0-100)"
+                helperText="Higher wins (0=lowest, 100=highest). Global=0, Airline=10, Agent=50"
                 inputProps={{ min: 0, max: 100 }}
               />
             </Grid>
