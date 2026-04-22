@@ -945,7 +945,7 @@ export default function KycPage() {
             label="Rejection Reason *"
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="e.g. PAN card photo clear nahi hai, please dobara upload karein..."
+            placeholder="e.g. The PAN card image is unclear. Kindly upload a clear photo again..."
             autoFocus
           />
         </DialogContent>
