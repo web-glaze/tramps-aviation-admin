@@ -44,7 +44,8 @@ import MainCard from "../../components/MainCard";
 
 const PENDING_STATUSES = ["pending", "submitted", "under_review"];
 const API_BASE =
-  process.env.REACT_APP_API_URL?.replace("/api", "") || "http://localhost:8080";
+  process.env.REACT_APP_API_URL?.replace("/api", "") ||
+  "https://tramps-aviation-backend.onrender.com";
 
 const statusColor = (status: string) => {
   if (status === "approved") return "success";
