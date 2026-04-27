@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Chip, Button, IconButton, TextField, InputAdornment,
   Skeleton, Tooltip, Alert, Snackbar, Dialog, DialogTitle, DialogContent,
-  DialogActions, Grid, Avatar, RadioGroup, FormControlLabel, Radio, FormLabel,
+  DialogActions, Avatar,
 } from '@mui/material';
 import { SearchOutlined, PlusOutlined, MinusOutlined, HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
 import { walletApi } from '../../api';
@@ -25,7 +25,7 @@ export default function WalletPage() {
   const [histLoading, setHistLoading] = useState(false);
   const [snack, setSnack] = useState({ open: false, msg: '', sev: 'success' as any });
 
-  const fetchWallets = async () => {
+  const fetchWallets = useCallback(async () => {
     setLoading(true);
     try {
       const res = await walletApi.getAll({ page, limit: 10, search });
@@ -35,9 +35,9 @@ export default function WalletPage() {
       setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setWallets([]); }
     finally { setLoading(false); }
-  };
+  }, [page, search]);
 
-  useEffect(() => { fetchWallets(); }, [page]);
+  useEffect(() => { fetchWallets(); }, [fetchWallets]);
 
   const openTx = (wallet: any, type: 'credit' | 'debit') => {
     setTxWallet(wallet);

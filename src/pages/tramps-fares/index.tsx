@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Box,
   Typography,
@@ -520,7 +520,7 @@ export default function TrampsTicketsPage() {
   const type = types[tabIdx];
   const empties: any[] = [emptyFlight, emptyHotel, emptyIns];
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const params: any = { page, limit: 20, type };
@@ -540,7 +540,7 @@ export default function TrampsTicketsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tabIdx, page, activeFilter, search, type]);
   const loadStats = async () => {
     try {
       const r = await trampsAviationFaresApi.getStats();
@@ -549,7 +549,7 @@ export default function TrampsTicketsPage() {
   };
   useEffect(() => {
     load();
-  }, [tabIdx, page, activeFilter]);
+  }, [load]);
   useEffect(() => {
     loadStats();
   }, []);

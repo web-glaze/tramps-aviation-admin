@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import {
   CheckCircleOutlined, DeleteOutlined, ReloadOutlined,
-  EyeInvisibleOutlined, LikeOutlined, MessageOutlined
+  EyeInvisibleOutlined, MessageOutlined
 } from '@ant-design/icons';
 import apiClient from '../../api';
 

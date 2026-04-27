@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Box, Typography, Grid, TextField, Button, Switch, FormControlLabel,
-  Alert, Snackbar, Divider, Card, CardContent, InputAdornment,
+  Alert, Snackbar, Divider, Card, InputAdornment,
 } from '@mui/material';
 import { SaveOutlined, SwapOutlined } from '@ant-design/icons';
 import { settingsApi } from '../../api';
@@ -51,7 +51,7 @@ const defaultPricing = {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<any>(defaultSettings);
   const [pricing, setPricing]   = useState<any>(defaultPricing);
-  const [loading, setLoading]   = useState(true);
+  const [_loading, setLoading]   = useState(true);
   const [snack, setSnack]       = useState({ open: false, msg: '', sev: 'success' as any });
 
   useEffect(() => {
