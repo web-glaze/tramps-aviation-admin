@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Box,
   Typography,
@@ -172,7 +172,7 @@ export default function KycPage() {
   });
   const [actionLoading, setActionLoading] = useState("");
 
-  const fetchKycs = async () => {
+  const fetchKycs = useCallback(async () => {
     setLoading(true);
     try {
       const res = await kycApi.getAll({
@@ -192,11 +192,9 @@ export default function KycPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchKycs();
   }, [page, statusFilter]);
+
+  useEffect(() => { fetchKycs(); }, [fetchKycs]);
 
   const handleApprove = async (id: string) => {
     setActionLoading(id + "_approve");

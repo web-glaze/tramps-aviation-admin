@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   Paper, Chip, Button, IconButton, TextField, Select, MenuItem,
   FormControl, InputLabel, Dialog, DialogTitle, DialogContent,
   DialogActions, Alert, Snackbar, CircularProgress, Grid,
-  Skeleton, InputAdornment, Tooltip, Badge, Divider,
+  Skeleton, InputAdornment, Tooltip, Divider,
 } from '@mui/material';
 import {
   SearchOutlined, ReloadOutlined, EyeOutlined, DeleteOutlined,
-  SendOutlined, CheckCircleOutlined, CloseCircleOutlined, MessageOutlined,
+  SendOutlined, CheckCircleOutlined,
 } from '@ant-design/icons';
 import apiClient from '../../api';
 import MainCard from '../../components/MainCard';
@@ -50,7 +50,7 @@ export default function EnquiriesPage() {
   const [adminNote, setAdminNote] = useState('');
   const [snack, setSnack]         = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await contactApi.getAll({ page, limit: 15, status: statusF, type: typeF, search });
@@ -59,9 +59,9 @@ export default function EnquiriesPage() {
       setTotal(d?.pagination?.total || 0);
       if (d?.stats) setStats(d.stats);
     } catch { setRows([]); } finally { setLoading(false); }
-  };
+  }, [page, statusF, typeF, search]);
 
-  useEffect(() => { load(); }, [page, statusF, typeF]);
+  useEffect(() => { load(); }, [load]);
 
   const handleView = async (row: any) => {
     try {

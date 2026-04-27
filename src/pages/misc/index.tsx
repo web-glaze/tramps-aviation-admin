@@ -1,6 +1,4 @@
-import { Box, Typography, Card, CardContent, Chip } from '@mui/material';
-import { CarOutlined } from '@ant-design/icons';
-
+import { Box, Typography, Card, Chip } from '@mui/material';
 export function FlightsPage() {
   return (
     <Box>

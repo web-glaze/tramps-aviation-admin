@@ -325,6 +325,7 @@ export default function CommissionPage() {
     fetchRules();
     fetchStats();
     fetchAgents();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Debounced re-fetch when filters change

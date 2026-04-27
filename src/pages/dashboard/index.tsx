@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Box, Grid, Typography, Skeleton, Card, CardContent,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Chip, Button, Paper, Avatar, Divider,
+  Chip, Button, Avatar, Divider,
 } from '@mui/material';
 import {
   TeamOutlined, UserOutlined, BookOutlined, WalletOutlined,

@@ -540,7 +540,7 @@ export default function TrampsTicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [tabIdx, page, activeFilter, search, type]);
+  }, [page, activeFilter, search, type]);
   const loadStats = async () => {
     try {
       const r = await trampsAviationFaresApi.getStats();

@@ -4,7 +4,6 @@ import {
   DialogActions, TextField, IconButton, Table, TableHead, TableRow,
   TableCell, TableBody, Paper, Chip, Alert, CircularProgress, Tooltip,
   Grid, Card, CardContent, Switch, FormControlLabel, Snackbar,
-  InputAdornment, Divider,
 } from "@mui/material";
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
@@ -74,6 +73,7 @@ function useTab(fetchFn: any, createFn: any, updateFn: any, deleteFn: any, toggl
     } finally { setLoading(false); }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   const openCreate = (defaults: any = {}) => {
@@ -252,6 +252,7 @@ function PopularRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
     finally { setLoading(false); }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   const save = async (updatedRoutes: any[]) => {

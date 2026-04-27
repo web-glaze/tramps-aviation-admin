@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Box, Typography, TextField, Button, Grid, FormControl, InputLabel,
-  Select, MenuItem, Alert, Snackbar, Card, CardContent, Chip,
+  Select, MenuItem, Alert, Snackbar, Card, CardContent,
 } from '@mui/material';
 import { SendOutlined, BellOutlined } from '@ant-design/icons';
 import { notificationsApi } from '../../api';

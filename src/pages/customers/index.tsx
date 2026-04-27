@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Chip, Button, IconButton, TextField, InputAdornment,
   Avatar, Skeleton, Tooltip, Alert, Snackbar, Dialog, DialogTitle,
-  DialogContent, DialogActions, Grid, FormControl, InputLabel, Select, MenuItem,
+  DialogContent, DialogActions, Grid,
 } from '@mui/material';
 import { SearchOutlined, EyeOutlined, StopOutlined, ReloadOutlined } from '@ant-design/icons';
 import { customersApi } from '../../api';
@@ -19,7 +19,7 @@ export default function CustomersPage() {
   const [viewOpen, setViewOpen] = useState(false);
   const [snack, setSnack] = useState({ open: false, msg: '', sev: 'success' as any });
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
       const res = await customersApi.getAll({ page, limit: 10, search });
@@ -29,9 +29,9 @@ export default function CustomersPage() {
       setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setCustomers([]); }
     finally { setLoading(false); }
-  };
+  }, [page, search]);
 
-  useEffect(() => { fetchCustomers(); }, [page]);
+  useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 
   const handleSuspend = async (id: string) => {
     try {

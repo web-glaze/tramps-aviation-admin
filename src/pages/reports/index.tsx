@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box, Typography, Grid, Card, CardContent, Button,
   FormControl, InputLabel, Select, MenuItem, Skeleton,
@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartTip,
-  ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { DownloadOutlined } from '@ant-design/icons';
 import { reportsApi } from '../../api';
@@ -20,7 +20,7 @@ export default function ReportsPage() {
   const [bookingData, setBookingData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
       const [revRes, bkRes] = await Promise.all([
@@ -31,9 +31,9 @@ export default function ReportsPage() {
       setBookingData(bkRes.data?.data || bkRes.data);
     } catch {}
     finally { setLoading(false); }
-  };
+  }, [period]);
 
-  useEffect(() => { fetchReports(); }, [period]);
+  useEffect(() => { fetchReports(); }, [fetchReports]);
 
   const handleExport = async (type: string) => {
     try {

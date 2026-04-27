@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box, Grid, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Chip, Button, IconButton, TextField, InputAdornment,
   Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, Select,
   FormControl, InputLabel, Tooltip, Avatar, Skeleton, CircularProgress,
-  Alert, Snackbar, Divider,
+  Alert, Snackbar,
 } from '@mui/material';
 import {
   SearchOutlined, EyeOutlined, CheckCircleOutlined, StopOutlined,
-  DeleteOutlined, ReloadOutlined, WalletOutlined,
+  ReloadOutlined, WalletOutlined,
 } from '@ant-design/icons';
 import { agentsApi } from '../../api';
 import MainCard from '../../components/MainCard';
@@ -36,7 +36,7 @@ export default function AgentsPage() {
 
   const showSnack = (msg: string, sev: any = 'success') => setSnack({ open: true, msg, sev });
 
-  const fetchAgents = async () => {
+  const fetchAgents = useCallback(async () => {
     setLoading(true);
     try {
       const res = await agentsApi.getAll({ page, limit: 10, search, status: statusFilter });
@@ -45,9 +45,9 @@ export default function AgentsPage() {
       setAgents(arr);
       setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setAgents([]); } finally { setLoading(false); }
-  };
+  }, [page, statusFilter, search]);
 
-  useEffect(() => { fetchAgents(); }, [page, statusFilter]);
+  useEffect(() => { fetchAgents(); }, [fetchAgents]);
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); fetchAgents(); };
 
   const handleApprove = async (id: string) => {

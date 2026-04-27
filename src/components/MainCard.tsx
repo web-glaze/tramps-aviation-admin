@@ -1,7 +1,7 @@
 import { forwardRef, ReactNode } from 'react';
 import {
-  Card, CardContent, CardHeader, Divider,
-  CardProps, CardContentProps, Box,
+  Card, CardContent, CardHeader, Divider, Typography,
+  CardProps, CardHeaderProps, CardContentProps, Box,
 } from '@mui/material';
 
 interface MainCardProps {

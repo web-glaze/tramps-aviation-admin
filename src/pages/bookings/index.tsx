@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Chip, Button, IconButton, TextField, InputAdornment,
@@ -29,7 +29,7 @@ export default function BookingsPage() {
   const [viewOpen, setViewOpen] = useState(false);
   const [snack, setSnack] = useState({ open: false, msg: '', sev: 'success' as any });
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
       const res = await bookingsApi.getAll({ page, limit: 10, search, status: statusFilter, type: typeFilter });
@@ -39,9 +39,9 @@ export default function BookingsPage() {
       setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setBookings([]); }
     finally { setLoading(false); }
-  };
+  }, [page, statusFilter, typeFilter, search]);
 
-  useEffect(() => { fetchBookings(); }, [page, statusFilter, typeFilter]);
+  useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
   const handleCancel = async (id: string) => {
     try {

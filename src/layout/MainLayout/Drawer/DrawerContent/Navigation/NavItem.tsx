@@ -1,6 +1,7 @@
 import { FC, forwardRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ListItemButton, ListItemIcon, ListItemText, Typography,
+import {
+  Avatar, ListItemButton, ListItemIcon, ListItemText, Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMenu, { ActionType } from '../../../../../hooks/useMenu';
@@ -21,7 +22,7 @@ interface NavItemProps {
 }
 
 const NavItem: FC<NavItemProps> = ({ item, level }) => {
-  const theme = useTheme();
+  const _theme = useTheme();
   const { pathname } = useLocation();
   const { menu, setMenu: dispatch } = useMenu();
   const { drawerOpen, openItem } = menu;

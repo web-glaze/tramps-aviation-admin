@@ -51,14 +51,13 @@ const defaultPricing = {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<any>(defaultSettings);
   const [pricing, setPricing]   = useState<any>(defaultPricing);
-  const [_loading, setLoading]   = useState(true);
   const [snack, setSnack]       = useState({ open: false, msg: '', sev: 'success' as any });
 
   useEffect(() => {
     settingsApi.get().then(res => {
       const d = res.data?.data || res.data;
       if (d) setSettings((s: any) => ({ ...s, ...d }));
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(() => {});
 
     settingsApi.getPricingRules().then(res => {
       const d = res.data?.data || res.data;

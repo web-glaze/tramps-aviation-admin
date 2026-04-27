@@ -1,5 +1,4 @@
 import { Box } from '@mui/material';
-import Navigation from './Navigation';
 import navigation from '../../../../menu-items';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
