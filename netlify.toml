@@ -1,0 +1,8 @@
+[build]
+  command = "yarn run build"
+  publish = "build"
+
+[build.environment]
+  CI = "false"
+  SKIP_PREFLIGHT_CHECK = "true"
+  GENERATE_SOURCEMAP = "false"
