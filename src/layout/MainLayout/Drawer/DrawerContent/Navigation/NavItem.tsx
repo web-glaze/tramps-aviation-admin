@@ -1,7 +1,6 @@
 import { FC, forwardRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  Avatar, ListItemButton, ListItemIcon, ListItemText, Typography,
+import { ListItemButton, ListItemIcon, ListItemText, Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMenu, { ActionType } from '../../../../../hooks/useMenu';
