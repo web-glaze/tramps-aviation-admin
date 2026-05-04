@@ -11,10 +11,15 @@ import {
 import { DownloadOutlined } from '@ant-design/icons';
 import { reportsApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useUserContext from '../../hooks/useUser';
+import { PERMISSIONS } from '../../constants/permissions';
 
 const COLORS = ['#1890ff', '#52c41a', '#fa8c16', '#eb2f96', '#722ed1'];
 
 export default function ReportsPage() {
+  const { can } = useUserContext();
+  const canExport = can(PERMISSIONS.REPORTS_EXPORT);
+
   const [period, setPeriod] = useState('month');
   const [revenueData, setRevenueData] = useState<any>(null);
   const [bookingData, setBookingData] = useState<any>(null);
@@ -86,9 +91,11 @@ export default function ReportsPage() {
               <MenuItem value="year">This Year</MenuItem>
             </Select>
           </FormControl>
-          <Button variant="outlined" startIcon={<DownloadOutlined />} onClick={() => handleExport('revenue')} size="small">
-            Export CSV
-          </Button>
+          {canExport && (
+            <Button variant="outlined" startIcon={<DownloadOutlined />} onClick={() => handleExport('revenue')} size="small">
+              Export CSV
+            </Button>
+          )}
         </Box>
       </Box>
 

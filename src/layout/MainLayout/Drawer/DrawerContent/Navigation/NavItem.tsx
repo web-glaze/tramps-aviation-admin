@@ -4,6 +4,7 @@ import {
   ListItemButton, ListItemIcon, ListItemText, Typography,
 } from '@mui/material';
 import useMenu, { ActionType } from '../../../../../hooks/useMenu';
+import { BRAND } from '../../../../../themes/palette';
 
 interface NavItemProps {
   level: number;
@@ -55,9 +56,6 @@ const NavItem: FC<NavItemProps> = ({ item, level }) => {
     // eslint-disable-next-line
   }, [pathname]);
 
-  const textColor = 'text.primary';
-  const iconSelectedColor = 'primary.main';
-
   return (
     <ListItemButton
       {...listItemProps}
@@ -68,21 +66,36 @@ const NavItem: FC<NavItemProps> = ({ item, level }) => {
         zIndex: 1201,
         pl: drawerOpen ? `${level * 28}px` : 1.5,
         py: !drawerOpen && level === 1 ? 1.25 : 1,
+        mx: drawerOpen ? 1 : 0.5,
+        my: 0.25,
+        borderRadius: 1.5,
+        transition: 'all 0.18s ease',
         ...(drawerOpen && {
-          '&:hover': { bgcolor: 'primary.lighter' },
+          // Hover: subtle blue tint
+          '&:hover': {
+            bgcolor: BRAND.BLUE_TINT,
+            transform: 'translateX(2px)',
+          },
+          // Selected: bold brand-blue background + orange left rail (20% accent)
           '&.Mui-selected': {
-            bgcolor: 'primary.lighter',
-            borderRight: `2px solid`,
-            borderColor: 'primary.main',
-            color: iconSelectedColor,
-            '&:hover': { color: iconSelectedColor, bgcolor: 'primary.lighter' },
+            bgcolor: BRAND.BLUE,
+            color: '#fff',
+            boxShadow: `0 4px 12px rgba(32, 154, 205, 0.35)`,
+            borderLeft: `4px solid ${BRAND.ORANGE}`,
+            '& .MuiListItemIcon-root': { color: '#fff' },
+            '& .MuiTypography-root': { color: '#fff', fontWeight: 700 },
+            '&:hover': {
+              bgcolor: BRAND.BLUE_DARK,
+              transform: 'translateX(2px)',
+            },
           },
         }),
         ...(!drawerOpen && {
-          '&:hover': { bgcolor: 'transparent' },
+          '&:hover': { bgcolor: BRAND.BLUE_TINT },
           '&.Mui-selected': {
-            '&:hover': { bgcolor: 'transparent' },
-            bgcolor: 'transparent',
+            bgcolor: BRAND.BLUE,
+            '& .MuiListItemIcon-root': { color: '#fff' },
+            '&:hover': { bgcolor: BRAND.BLUE_DARK },
           },
         }),
       }}
@@ -91,18 +104,14 @@ const NavItem: FC<NavItemProps> = ({ item, level }) => {
         <ListItemIcon
           sx={{
             minWidth: 28,
-            color: isSelected ? iconSelectedColor : textColor,
+            color: isSelected ? '#fff' : BRAND.BLUE_DARK,
+            transition: 'color 0.18s ease',
             ...(!drawerOpen && {
               borderRadius: 1.5,
               width: 36,
               height: 36,
               alignItems: 'center',
               justifyContent: 'center',
-              '&:hover': { bgcolor: 'secondary.lighter' },
-            }),
-            ...(!drawerOpen && isSelected && {
-              bgcolor: 'primary.lighter',
-              '&:hover': { bgcolor: 'primary.lighter' },
             }),
           }}
         >
@@ -115,7 +124,11 @@ const NavItem: FC<NavItemProps> = ({ item, level }) => {
           primary={
             <Typography
               variant="h6"
-              sx={{ color: isSelected ? iconSelectedColor : textColor, fontWeight: isSelected ? 600 : 400 }}
+              sx={{
+                color: isSelected ? '#fff' : 'text.primary',
+                fontWeight: isSelected ? 700 : 500,
+                fontSize: '0.875rem',
+              }}
             >
               {item.title}
             </Typography>

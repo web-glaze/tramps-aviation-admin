@@ -8,8 +8,13 @@ import {
 import { SearchOutlined, EyeOutlined, StopOutlined, ReloadOutlined } from '@ant-design/icons';
 import { customersApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useUserContext from '../../hooks/useUser';
+import { PERMISSIONS } from '../../constants/permissions';
 
 export default function CustomersPage() {
+  const { can } = useUserContext();
+  const canSuspend = can(PERMISSIONS.CUSTOMERS_SUSPEND);
+
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -107,7 +112,7 @@ export default function CustomersPage() {
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
                         <Tooltip title="View"><IconButton size="small" color="primary" onClick={() => { setSelected(c); setViewOpen(true); }}><EyeOutlined /></IconButton></Tooltip>
-                        <Tooltip title="Suspend"><IconButton size="small" color="warning" onClick={() => handleSuspend(c._id)}><StopOutlined /></IconButton></Tooltip>
+                        {canSuspend && <Tooltip title="Suspend"><IconButton size="small" color="warning" onClick={() => handleSuspend(c._id)}><StopOutlined /></IconButton></Tooltip>}
                       </Box>
                     </TableCell>
                   </TableRow>

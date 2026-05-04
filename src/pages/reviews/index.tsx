@@ -10,6 +10,8 @@ import {
   EyeInvisibleOutlined, MessageOutlined
 } from '@ant-design/icons';
 import apiClient from '../../api';
+import useUserContext from '../../hooks/useUser';
+import { PERMISSIONS } from '../../constants/permissions';
 
 const reviewsApi = {
   getPending: (p?: any) => apiClient.get('/reviews/admin/pending', { params: p }),
@@ -26,13 +28,14 @@ const STAR_LABELS = ['','Poor','Fair','Good','Very Good','Excellent'];
 
 // ── Single review card ────────────────────────────────────────────────────────
 function ReviewCard({
-  review, onApprove, onHide, onDelete, onRespond,
+  review, onApprove, onHide, onDelete, onRespond, canEdit,
 }: {
   review: any;
   onApprove: (id: string) => void;
   onHide: (id: string) => void;
   onDelete: (id: string) => void;
   onRespond: (id: string, text: string) => void;
+  canEdit: boolean;
 }) {
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState(review.adminResponse || '');
@@ -108,34 +111,38 @@ function ReviewCard({
 
         {/* Action buttons */}
         <Box sx={{ display:'flex', gap:0.5, flexShrink:0 }}>
-          {/* Approve — only when pending */}
-          {!isApproved && (
+          {/* Approve — only when pending and canEdit */}
+          {canEdit && !isApproved && (
             <Tooltip title="Approve & Show on Homepage">
               <IconButton size="small" color="success" onClick={() => onApprove(id)}>
                 <CheckCircleOutlined/>
               </IconButton>
             </Tooltip>
           )}
-          {/* Hide — only when approved */}
-          {isApproved && (
+          {/* Hide — only when approved and canEdit */}
+          {canEdit && isApproved && (
             <Tooltip title="Hide from Homepage">
               <IconButton size="small" color="warning" onClick={() => onHide(id)}>
                 <EyeInvisibleOutlined/>
               </IconButton>
             </Tooltip>
           )}
-          {/* Reply */}
-          <Tooltip title="Add / Edit Admin Response">
-            <IconButton size="small" color="primary" onClick={() => setShowReply(v => !v)}>
-              <MessageOutlined/>
-            </IconButton>
-          </Tooltip>
-          {/* Delete */}
-          <Tooltip title="Delete Permanently">
-            <IconButton size="small" color="error" onClick={() => setDelConfirm(true)}>
-              <DeleteOutlined/>
-            </IconButton>
-          </Tooltip>
+          {/* Reply — only canEdit */}
+          {canEdit && (
+            <Tooltip title="Add / Edit Admin Response">
+              <IconButton size="small" color="primary" onClick={() => setShowReply(v => !v)}>
+                <MessageOutlined/>
+              </IconButton>
+            </Tooltip>
+          )}
+          {/* Delete — only canEdit */}
+          {canEdit && (
+            <Tooltip title="Delete Permanently">
+              <IconButton size="small" color="error" onClick={() => setDelConfirm(true)}>
+                <DeleteOutlined/>
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       </Box>
 
@@ -234,6 +241,9 @@ function ReviewCard({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ReviewsPage() {
+  const { can } = useUserContext();
+  const canEdit = can(PERMISSIONS.CONTENT_REVIEWS_EDIT);
+
   const [tab,          setTab]          = useState(0);
   const [pending,      setPending]      = useState<any[]>([]);
   const [reviews,      setReviews]      = useState<any[]>([]);
@@ -362,6 +372,7 @@ export default function ReviewsPage() {
                     onHide={handleHide}
                     onDelete={handleDelete}
                     onRespond={handleRespond}
+                    canEdit={canEdit}
                   />
                 ))
               )}
@@ -415,6 +426,7 @@ export default function ReviewsPage() {
                     onHide={handleHide}
                     onDelete={handleDelete}
                     onRespond={handleRespond}
+                    canEdit={canEdit}
                   />
                 ))
               )}

@@ -41,11 +41,11 @@ import {
 } from "@ant-design/icons";
 import { kycApi } from "../../api";
 import MainCard from "../../components/MainCard";
+import { MEDIA_BASE_URL } from "../../constants";
+import useUserContext from "../../hooks/useUser";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const PENDING_STATUSES = ["pending", "submitted", "under_review"];
-const API_BASE =
-  process.env.REACT_APP_API_URL?.replace("/api", "") ||
-  "https://tramps-aviation-backend.onrender.com";
 
 const statusColor = (status: string) => {
   if (status === "approved") return "success";
@@ -56,7 +56,7 @@ const statusColor = (status: string) => {
 // Render a document — image inline, PDF as link
 function DocViewer({ label, url }: { label: string; url: string }) {
   if (!url) return null;
-  const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+  const fullUrl = url.startsWith("http") ? url : `${MEDIA_BASE_URL}${url}`;
   const isPdf = url.toLowerCase().endsWith(".pdf");
   return (
     <Card
@@ -156,6 +156,10 @@ function DocViewer({ label, url }: { label: string; url: string }) {
 }
 
 export default function KycPage() {
+  const { can } = useUserContext();
+  const canApprove = can(PERMISSIONS.KYC_APPROVE);
+  const canReject  = can(PERMISSIONS.KYC_REJECT);
+
   const [kycs, setKycs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("pending");
@@ -566,32 +570,36 @@ export default function KycPage() {
                         flexDirection: "column",
                       }}
                     >
-                      <Button
-                        variant="contained"
-                        color="success"
-                        fullWidth
-                        size="large"
-                        startIcon={<CheckCircleOutlined />}
-                        disabled={actionLoading === selected._id + "_approve"}
-                        onClick={() => handleApprove(selected._id)}
-                        sx={{ fontWeight: 700, py: 1.2 }}
-                      >
-                        ✓ Approve & Activate Agent
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        fullWidth
-                        size="large"
-                        startIcon={<CloseCircleOutlined />}
-                        onClick={() => {
-                          setRejectTarget(selected._id);
-                          setRejectOpen(true);
-                        }}
-                        sx={{ fontWeight: 700, py: 1.2 }}
-                      >
-                        ✗ Reject KYC
-                      </Button>
+                      {canApprove && (
+                        <Button
+                          variant="contained"
+                          color="success"
+                          fullWidth
+                          size="large"
+                          startIcon={<CheckCircleOutlined />}
+                          disabled={actionLoading === selected._id + "_approve"}
+                          onClick={() => handleApprove(selected._id)}
+                          sx={{ fontWeight: 700, py: 1.2 }}
+                        >
+                          ✓ Approve & Activate Agent
+                        </Button>
+                      )}
+                      {canReject && (
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          fullWidth
+                          size="large"
+                          startIcon={<CloseCircleOutlined />}
+                          onClick={() => {
+                            setRejectTarget(selected._id);
+                            setRejectOpen(true);
+                          }}
+                          sx={{ fontWeight: 700, py: 1.2 }}
+                        >
+                          ✗ Reject KYC
+                        </Button>
+                      )}
                     </Box>
                   </Box>
                 )}
@@ -880,30 +888,34 @@ export default function KycPage() {
                     >
                       After reviewing all documents above, take action:
                     </Typography>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      size="large"
-                      startIcon={<CloseCircleOutlined />}
-                      onClick={() => {
-                        setRejectTarget(selected._id);
-                        setRejectOpen(true);
-                      }}
-                      sx={{ fontWeight: 700 }}
-                    >
-                      Reject
-                    </Button>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      size="large"
-                      startIcon={<CheckCircleOutlined />}
-                      disabled={actionLoading === selected._id + "_approve"}
-                      onClick={() => handleApprove(selected._id)}
-                      sx={{ fontWeight: 700 }}
-                    >
-                      Approve & Activate
-                    </Button>
+                    {canReject && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="large"
+                        startIcon={<CloseCircleOutlined />}
+                        onClick={() => {
+                          setRejectTarget(selected._id);
+                          setRejectOpen(true);
+                        }}
+                        sx={{ fontWeight: 700 }}
+                      >
+                        Reject
+                      </Button>
+                    )}
+                    {canApprove && (
+                      <Button
+                        variant="contained"
+                        color="success"
+                        size="large"
+                        startIcon={<CheckCircleOutlined />}
+                        disabled={actionLoading === selected._id + "_approve"}
+                        onClick={() => handleApprove(selected._id)}
+                        sx={{ fontWeight: 700 }}
+                      >
+                        Approve & Activate
+                      </Button>
+                    )}
                   </Box>
                 )}
               </Grid>

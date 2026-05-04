@@ -8,8 +8,14 @@ import {
 import { SearchOutlined, PlusOutlined, MinusOutlined, HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
 import { walletApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useUserContext from '../../hooks/useUser';
+import { PERMISSIONS } from '../../constants/permissions';
 
 export default function WalletPage() {
+  const { can } = useUserContext();
+  const canCredit = can(PERMISSIONS.WALLETS_CREDIT);
+  const canDebit  = can(PERMISSIONS.WALLETS_DEBIT);
+
   const [wallets, setWallets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -144,8 +150,8 @@ export default function WalletPage() {
                     <TableCell>{w.lastTransactionAt ? new Date(w.lastTransactionAt).toLocaleDateString('en-IN') : '—'}</TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <Tooltip title="Credit"><IconButton size="small" color="success" onClick={() => openTx(w, 'credit')}><PlusOutlined /></IconButton></Tooltip>
-                        <Tooltip title="Debit"><IconButton size="small" color="error" onClick={() => openTx(w, 'debit')}><MinusOutlined /></IconButton></Tooltip>
+                        {canCredit && <Tooltip title="Credit"><IconButton size="small" color="success" onClick={() => openTx(w, 'credit')}><PlusOutlined /></IconButton></Tooltip>}
+                        {canDebit  && <Tooltip title="Debit"><IconButton size="small" color="error" onClick={() => openTx(w, 'debit')}><MinusOutlined /></IconButton></Tooltip>}
                         <Tooltip title="Transaction History"><IconButton size="small" color="info" onClick={() => openHistory(w)}><HistoryOutlined /></IconButton></Tooltip>
                       </Box>
                     </TableCell>

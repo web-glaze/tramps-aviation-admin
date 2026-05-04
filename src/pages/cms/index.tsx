@@ -12,6 +12,8 @@ import {
 import { cmsApi } from '../../api';
 import MainCard from '../../components/MainCard';
 import { API_BASE_URL } from '../../constants';
+import { PERMISSIONS } from '../../constants/permissions';
+import useUserContext from '../../hooks/useUser';
 
 // ── Predefined page slugs & labels ────────────────────────────────────────────
 const PRESET_PAGES = [
@@ -41,9 +43,11 @@ async function uploadImageToServer(file: File): Promise<string> {
 function CoverImageField({
   value,
   onChange,
+  disabled = false,
 }: {
   value: string;
   onChange: (url: string) => void;
+  disabled?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -79,7 +83,8 @@ function CoverImageField({
           size="small"
           placeholder="Paste image URL, or upload →"
           value={value || ''}
-          onChange={e => onChange(e.target.value)}
+          onChange={e => !disabled && onChange(e.target.value)}
+          InputProps={{ readOnly: disabled }}
           sx={{ flex: 1, minWidth: 260, bgcolor: 'background.paper' }}
         />
         <input
@@ -89,17 +94,19 @@ function CoverImageField({
           style={{ display: 'none' }}
           onChange={handleFile}
         />
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={uploading ? <CircularProgress size={14} sx={{ color: 'white' }} /> : <PictureOutlined />}
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-          sx={{ whiteSpace: 'nowrap' }}
-        >
-          {uploading ? 'Uploading…' : 'Upload Image'}
-        </Button>
-        {value && (
+        {!disabled && (
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={uploading ? <CircularProgress size={14} sx={{ color: 'white' }} /> : <PictureOutlined />}
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            sx={{ whiteSpace: 'nowrap' }}
+          >
+            {uploading ? 'Uploading…' : 'Upload Image'}
+          </Button>
+        )}
+        {value && !disabled && (
           <Button size="small" color="error" variant="outlined" onClick={() => onChange('')}>
             Remove
           </Button>
@@ -127,7 +134,7 @@ function CoverImageField({
 }
 
 // ── Rich Text Editor with Image Upload ────────────────────────────────────────
-function RichEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function RichEditor({ value, onChange, readOnly = false }: { value: string; onChange: (v: string) => void; readOnly?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const [imgUploading, setImgUploading] = useState(false);
@@ -223,7 +230,7 @@ function RichEditor({ value, onChange }: { value: string; onChange: (v: string) 
   return (
     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
       {/* Toolbar */}
-      <Box sx={{
+      {!readOnly && <Box sx={{
         display: 'flex', flexWrap: 'wrap', gap: 0.5, p: 1,
         bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider',
         alignItems: 'center',
@@ -276,18 +283,20 @@ function RichEditor({ value, onChange }: { value: string; onChange: (v: string) 
         >
           {imgUploading ? 'Uploading…' : '📤 Upload Image'}
         </Button>
-      </Box>
+      </Box>}
 
       {/* Editable area */}
       <Box
         ref={ref}
-        contentEditable
+        contentEditable={!readOnly}
         suppressContentEditableWarning
         onInput={handleInput}
         sx={{
           minHeight: 420,
           p: 2.5,
           outline: 'none',
+          cursor: readOnly ? 'default' : 'text',
+          bgcolor: readOnly ? 'grey.50' : 'background.paper',
           fontSize: '14px',
           lineHeight: 1.8,
           '& h1': { fontSize: '1.8rem', fontWeight: 700, my: 1.5, lineHeight: 1.3 },
@@ -315,7 +324,7 @@ function RichEditor({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 // ── Page Editor ───────────────────────────────────────────────────────────────
-function PageEditor({ slug, onSaved }: { slug: string; onSaved: (msg: string) => void }) {
+function PageEditor({ slug, onSaved, canEdit }: { slug: string; onSaved: (msg: string) => void; canEdit: boolean }) {
   const [page, setPage]       = useState<any>({ slug, title: '', content: '', isPublished: true, metaTitle: '', metaDescription: '', coverImage: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
@@ -355,15 +364,17 @@ function PageEditor({ slug, onSaved }: { slug: string; onSaved: (msg: string) =>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
           <FormControlLabel
-            control={<Switch checked={!!page.isPublished} onChange={e => setPage((p: any) => ({ ...p, isPublished: e.target.checked }))} />}
+            control={<Switch checked={!!page.isPublished} onChange={e => canEdit && setPage((p: any) => ({ ...p, isPublished: e.target.checked }))} disabled={!canEdit} />}
             label={<Typography variant="body2">{page.isPublished ? '🟢 Published' : '⚫ Draft'}</Typography>}
           />
           <Button size="small" variant="outlined" startIcon={<EyeOutlined />} onClick={() => setPreview(!preview)}>
             {preview ? 'Edit' : 'Preview'}
           </Button>
-          <Button variant="contained" startIcon={saving ? undefined : <SaveOutlined />} onClick={handleSave} disabled={saving}>
-            {saving ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null} Save
-          </Button>
+          {canEdit && (
+            <Button variant="contained" startIcon={saving ? undefined : <SaveOutlined />} onClick={handleSave} disabled={saving}>
+              {saving ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null} Save
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -371,22 +382,26 @@ function PageEditor({ slug, onSaved }: { slug: string; onSaved: (msg: string) =>
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={12}>
           <TextField fullWidth label="Page Title" value={page.title || ''}
-            onChange={e => setPage((p: any) => ({ ...p, title: e.target.value }))} />
+            onChange={e => canEdit && setPage((p: any) => ({ ...p, title: e.target.value }))}
+            InputProps={{ readOnly: !canEdit }} />
         </Grid>
         <Grid size={6}>
           <TextField fullWidth label="Meta Title (SEO)" value={page.metaTitle || ''}
-            onChange={e => setPage((p: any) => ({ ...p, metaTitle: e.target.value }))} />
+            onChange={e => canEdit && setPage((p: any) => ({ ...p, metaTitle: e.target.value }))}
+            InputProps={{ readOnly: !canEdit }} />
         </Grid>
         <Grid size={6}>
           <TextField fullWidth label="Meta Description (SEO)" value={page.metaDescription || ''}
-            onChange={e => setPage((p: any) => ({ ...p, metaDescription: e.target.value }))} />
+            onChange={e => canEdit && setPage((p: any) => ({ ...p, metaDescription: e.target.value }))}
+            InputProps={{ readOnly: !canEdit }} />
         </Grid>
       </Grid>
 
       {/* Cover image */}
       <CoverImageField
         value={page.coverImage || ''}
-        onChange={url => setPage((p: any) => ({ ...p, coverImage: url }))}
+        onChange={url => canEdit && setPage((p: any) => ({ ...p, coverImage: url }))}
+        disabled={!canEdit}
       />
 
       {/* Preview or Editor */}
@@ -416,14 +431,16 @@ function PageEditor({ slug, onSaved }: { slug: string; onSaved: (msg: string) =>
           />
         </Box>
       ) : (
-        <RichEditor value={page.content || ''} onChange={content => setPage((p: any) => ({ ...p, content }))} />
+        <RichEditor value={page.content || ''} onChange={content => setPage((p: any) => ({ ...p, content }))} readOnly={!canEdit} />
       )}
 
-      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-        <Button variant="contained" size="large" startIcon={saving ? undefined : <SaveOutlined />} onClick={handleSave} disabled={saving}>
-          {saving ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null} Save Changes
-        </Button>
-      </Box>
+      {canEdit && (
+        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button variant="contained" size="large" startIcon={saving ? undefined : <SaveOutlined />} onClick={handleSave} disabled={saving}>
+            {saving ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null} Save Changes
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -459,6 +476,9 @@ function NewPageDialog({ open, onClose, onCreated }: any) {
 
 // ── Main CMS Page ─────────────────────────────────────────────────────────────
 export default function CmsPage() {
+  const { can } = useUserContext();
+  const canEdit = can(PERMISSIONS.CONTENT_PAGES_EDIT);
+
   const [pages, setPages]             = useState<any[]>([]);
   const [activeSlug, setActiveSlug]   = useState('privacy');
   const [snack, setSnack]             = useState('');
@@ -512,15 +532,17 @@ export default function CmsPage() {
       <MainCard
         title="Page Manager"
         secondary={
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button size="small" variant="outlined" startIcon={<PlusOutlined />} onClick={() => setNewPageOpen(true)}>
-              New Page
-            </Button>
-            <Button size="small" variant="outlined" startIcon={<ReloadOutlined />} disabled={seeding} onClick={handleSeed}>
-              {seeding ? <CircularProgress size={14} sx={{ mr: 0.5 }} /> : null}
-              Load Default Content
-            </Button>
-          </Box>
+          canEdit ? (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button size="small" variant="outlined" startIcon={<PlusOutlined />} onClick={() => setNewPageOpen(true)}>
+                New Page
+              </Button>
+              <Button size="small" variant="outlined" startIcon={<ReloadOutlined />} disabled={seeding} onClick={handleSeed}>
+                {seeding ? <CircularProgress size={14} sx={{ mr: 0.5 }} /> : null}
+                Load Default Content
+              </Button>
+            </Box>
+          ) : null
         }
       >
         <Tabs
@@ -544,7 +566,7 @@ export default function CmsPage() {
           ))}
         </Tabs>
 
-        <PageEditor key={activeSlug} slug={activeSlug} onSaved={msg => { setSnack(msg); loadPages(); }} />
+        <PageEditor key={activeSlug} slug={activeSlug} onSaved={msg => { setSnack(msg); loadPages(); }} canEdit={canEdit} />
       </MainCard>
 
       <NewPageDialog

@@ -9,7 +9,9 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   CheckCircleOutlined, StopOutlined, UploadOutlined, DownloadOutlined,
 } from "@ant-design/icons";
-import apiClient, { settingsApi } from "../../api";
+import apiClient, { popularRoutesApi } from "../../api";
+import useUserContext from "../../hooks/useUser";
+import { PERMISSIONS } from "../../constants/permissions";
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 const api = {
@@ -236,7 +238,7 @@ function BulkImportDialog({ open, onClose, tabLabel, csvTemplate, csvHeaders, on
 }
 
 // ── POPULAR ROUTES TAB (from Settings) ───────────────────────────────────────
-function PopularRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
+function PopularRoutesTab({ onMessage, canEdit }: { onMessage: (m: string) => void; canEdit: boolean }) {
   const [routes, setRoutes]   = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
@@ -245,7 +247,9 @@ function PopularRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await settingsApi.get();
+      // Dedicated /admin/popular-routes endpoint — uses content.popular.view
+      // permission so sub-admins don't need full settings.view access.
+      const res = await popularRoutesApi.get();
       const d   = res.data?.data || res.data;
       setRoutes(d?.popularRoutes || []);
     } catch { onMessage("❌ Failed to load routes"); }
@@ -258,7 +262,7 @@ function PopularRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
   const save = async (updatedRoutes: any[]) => {
     setSaving(true);
     try {
-      await settingsApi.update({ popularRoutes: updatedRoutes });
+      await popularRoutesApi.update(updatedRoutes);
       onMessage("✅ Popular routes saved!");
     } catch { onMessage("❌ Failed to save routes"); }
     finally { setSaving(false); }
@@ -285,9 +289,9 @@ function PopularRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
       <Box sx={{ display:"flex", justifyContent:"space-between", alignItems:"center", mb:2 }}>
         <Typography variant="h6" fontWeight={700}>🗺️ Popular Routes ({routes.length})</Typography>
         <Box sx={{ display:"flex", gap:1 }}>
-          <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>
+          {canEdit && <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>}
           <Button size="small" variant="outlined" startIcon={<ReloadOutlined />} onClick={load}>Refresh</Button>
-          <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={addRoute}>Add Route</Button>
+          {canEdit && <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={addRoute}>Add Route</Button>}
         </Box>
       </Box>
 
@@ -302,9 +306,9 @@ function PopularRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
               <Card variant="outlined" sx={{ p:2, borderRadius:2, position:"relative", opacity: route.isActive ? 1 : 0.6 }}>
                 <Box sx={{ position:"absolute", top:8, right:8, display:"flex", gap:0.5 }}>
                   <Tooltip title={route.isActive ? "Active — click to hide" : "Hidden — click to show"}>
-                    <Switch size="small" checked={!!route.isActive} onChange={() => toggle(i)} />
+                    <Switch size="small" checked={!!route.isActive} onChange={() => canEdit && toggle(i)} disabled={!canEdit} />
                   </Tooltip>
-                  <Tooltip title="Remove"><IconButton size="small" color="error" onClick={() => removeRoute(i)}><DeleteOutlined /></IconButton></Tooltip>
+                  {canEdit && <Tooltip title="Remove"><IconButton size="small" color="error" onClick={() => removeRoute(i)}><DeleteOutlined /></IconButton></Tooltip>}
                 </Box>
                 <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb:1.5, display:"block" }}>
                   Route #{i+1} {!route.isActive && <Chip label="Hidden" size="small" sx={{ ml:0.5 }} />}
@@ -335,7 +339,7 @@ function PopularRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
         </Grid>
       )}
 
-      {routes.length > 0 && (
+      {canEdit && routes.length > 0 && (
         <Box sx={{ mt:3 }}>
           <Button variant="contained" disabled={saving} onClick={() => save(routes)}>
             {saving ? <CircularProgress size={18} sx={{ mr:1 }} /> : null}
@@ -354,7 +358,7 @@ function PopularRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
 }
 
 // ── FLIGHTS TAB ───────────────────────────────────────────────────────────────
-function FlightRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
+function FlightRoutesTab({ onMessage, canEdit }: { onMessage: (m: string) => void; canEdit: boolean }) {
   const t = useTab(api.getFlights, api.createFlight, api.updateFlight, api.deleteFlight, api.toggleFlight);
   const [bulkOpen, setBulkOpen] = useState(false);
 
@@ -375,9 +379,9 @@ function FlightRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
       <Box sx={{ display:"flex", justifyContent:"space-between", alignItems:"center", mb:2 }}>
         <Typography variant="h6" fontWeight={700}>✈️ Flight Routes ({t.rows.length})</Typography>
         <Box sx={{ display:"flex", gap:1 }}>
-          <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>
+          {canEdit && <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>}
           <Button size="small" variant="outlined" startIcon={<ReloadOutlined />} onClick={t.load}>Refresh</Button>
-          <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={() => t.openCreate()}>Add Route</Button>
+          {canEdit && <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={() => t.openCreate()}>Add Route</Button>}
         </Box>
       </Box>
       {t.error && <Alert severity="error" sx={{ mb:2 }}>{t.error}</Alert>}
@@ -409,13 +413,16 @@ function FlightRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
                   <TableCell>{r.sortOrder??0}</TableCell>
                   <TableCell><Chip label={r.isActive?"Active":"Hidden"} color={r.isActive?"success":"default"} size="small" /></TableCell>
                   <TableCell>
-                    <Tooltip title={r.isActive?"Hide":"Show"}>
-                      <IconButton size="small" onClick={() => t.handleToggle(r._id)}>
-                        {r.isActive ? <StopOutlined style={{ color:"#f57c00" }} /> : <CheckCircleOutlined style={{ color:"#388e3c" }} />}
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Edit"><IconButton size="small" onClick={() => t.openEdit(r)}><EditOutlined /></IconButton></Tooltip>
-                    <Tooltip title="Delete"><IconButton size="small" style={{ color:"#d32f2f" }} onClick={() => t.setDelItem(r)}><DeleteOutlined /></IconButton></Tooltip>
+                    {canEdit && (
+                      <Tooltip title={r.isActive?"Hide":"Show"}>
+                        <IconButton size="small" onClick={() => t.handleToggle(r._id)}>
+                          {r.isActive ? <StopOutlined style={{ color:"#f57c00" }} /> : <CheckCircleOutlined style={{ color:"#388e3c" }} />}
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {canEdit && <Tooltip title="Edit"><IconButton size="small" onClick={() => t.openEdit(r)}><EditOutlined /></IconButton></Tooltip>}
+                    {canEdit && <Tooltip title="Delete"><IconButton size="small" style={{ color:"#d32f2f" }} onClick={() => t.setDelItem(r)}><DeleteOutlined /></IconButton></Tooltip>}
+                    {!canEdit && <Typography variant="caption" color="text.secondary">View only</Typography>}
                   </TableCell>
                 </TableRow>
               ))}
@@ -449,7 +456,7 @@ function FlightRoutesTab({ onMessage }: { onMessage: (m: string) => void }) {
 }
 
 // ── HOTELS TAB ────────────────────────────────────────────────────────────────
-function HotelsTab({ onMessage }: { onMessage: (m: string) => void }) {
+function HotelsTab({ onMessage, canEdit }: { onMessage: (m: string) => void; canEdit: boolean }) {
   const t = useTab(api.getHotels, api.createHotel, api.updateHotel, api.deleteHotel, api.toggleHotel);
   const [bulkOpen, setBulkOpen] = useState(false);
 
@@ -470,9 +477,9 @@ function HotelsTab({ onMessage }: { onMessage: (m: string) => void }) {
       <Box sx={{ display:"flex", justifyContent:"space-between", alignItems:"center", mb:2 }}>
         <Typography variant="h6" fontWeight={700}>🏨 Popular Hotels ({t.rows.length})</Typography>
         <Box sx={{ display:"flex", gap:1 }}>
-          <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>
+          {canEdit && <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>}
           <Button size="small" variant="outlined" startIcon={<ReloadOutlined />} onClick={t.load}>Refresh</Button>
-          <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={() => t.openCreate({ stars:4 })}>Add Hotel</Button>
+          {canEdit && <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={() => t.openCreate({ stars:4 })}>Add Hotel</Button>}
         </Box>
       </Box>
       {t.error && <Alert severity="error" sx={{ mb:2 }}>{t.error}</Alert>}
@@ -493,9 +500,10 @@ function HotelsTab({ onMessage }: { onMessage: (m: string) => void }) {
                   <TableCell>{r.rating||"—"}</TableCell>
                   <TableCell><Chip label={r.isActive?"Active":"Hidden"} color={r.isActive?"success":"default"} size="small" /></TableCell>
                   <TableCell>
-                    <Tooltip title={r.isActive?"Hide":"Show"}><IconButton size="small" onClick={() => t.handleToggle(r._id)}>{r.isActive?<StopOutlined style={{ color:"#f57c00" }}/>:<CheckCircleOutlined style={{ color:"#388e3c" }}/>}</IconButton></Tooltip>
-                    <Tooltip title="Edit"><IconButton size="small" onClick={() => t.openEdit(r)}><EditOutlined /></IconButton></Tooltip>
-                    <Tooltip title="Delete"><IconButton size="small" style={{ color:"#d32f2f" }} onClick={() => t.setDelItem(r)}><DeleteOutlined /></IconButton></Tooltip>
+                    {canEdit && <Tooltip title={r.isActive?"Hide":"Show"}><IconButton size="small" onClick={() => t.handleToggle(r._id)}>{r.isActive?<StopOutlined style={{ color:"#f57c00" }}/>:<CheckCircleOutlined style={{ color:"#388e3c" }}/>}</IconButton></Tooltip>}
+                    {canEdit && <Tooltip title="Edit"><IconButton size="small" onClick={() => t.openEdit(r)}><EditOutlined /></IconButton></Tooltip>}
+                    {canEdit && <Tooltip title="Delete"><IconButton size="small" style={{ color:"#d32f2f" }} onClick={() => t.setDelItem(r)}><DeleteOutlined /></IconButton></Tooltip>}
+                    {!canEdit && <Typography variant="caption" color="text.secondary">View only</Typography>}
                   </TableCell>
                 </TableRow>
               ))}
@@ -528,7 +536,7 @@ function HotelsTab({ onMessage }: { onMessage: (m: string) => void }) {
 }
 
 // ── CITIES TAB ────────────────────────────────────────────────────────────────
-function CitiesTab({ onMessage }: { onMessage: (m: string) => void }) {
+function CitiesTab({ onMessage, canEdit }: { onMessage: (m: string) => void; canEdit: boolean }) {
   const t = useTab(api.getCities, api.createCity, api.updateCity, api.deleteCity);
   const [bulkOpen, setBulkOpen] = useState(false);
 
@@ -549,9 +557,9 @@ function CitiesTab({ onMessage }: { onMessage: (m: string) => void }) {
       <Box sx={{ display:"flex", justifyContent:"space-between", alignItems:"center", mb:2 }}>
         <Typography variant="h6" fontWeight={700}>🏙️ Popular Cities ({t.rows.length})</Typography>
         <Box sx={{ display:"flex", gap:1 }}>
-          <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>
+          {canEdit && <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>}
           <Button size="small" variant="outlined" startIcon={<ReloadOutlined />} onClick={t.load}>Refresh</Button>
-          <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={() => t.openCreate()}>Add City</Button>
+          {canEdit && <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={() => t.openCreate()}>Add City</Button>}
         </Box>
       </Box>
       {t.error && <Alert severity="error" sx={{ mb:2 }}>{t.error}</Alert>}
@@ -571,8 +579,9 @@ function CitiesTab({ onMessage }: { onMessage: (m: string) => void }) {
                   <TableCell><Chip label={r.airportCode||"—"} size="small" variant="outlined" /></TableCell>
                   <TableCell><Chip label={r.isActive?"Active":"Hidden"} color={r.isActive?"success":"default"} size="small" /></TableCell>
                   <TableCell>
-                    <Tooltip title="Edit"><IconButton size="small" onClick={() => t.openEdit(r)}><EditOutlined /></IconButton></Tooltip>
-                    <Tooltip title="Delete"><IconButton size="small" style={{ color:"#d32f2f" }} onClick={() => t.setDelItem(r)}><DeleteOutlined /></IconButton></Tooltip>
+                    {canEdit && <Tooltip title="Edit"><IconButton size="small" onClick={() => t.openEdit(r)}><EditOutlined /></IconButton></Tooltip>}
+                    {canEdit && <Tooltip title="Delete"><IconButton size="small" style={{ color:"#d32f2f" }} onClick={() => t.setDelItem(r)}><DeleteOutlined /></IconButton></Tooltip>}
+                    {!canEdit && <Typography variant="caption" color="text.secondary">View only</Typography>}
                   </TableCell>
                 </TableRow>
               ))}
@@ -604,7 +613,7 @@ function CitiesTab({ onMessage }: { onMessage: (m: string) => void }) {
 }
 
 // ── COUNTRIES TAB ─────────────────────────────────────────────────────────────
-function CountriesTab({ onMessage }: { onMessage: (m: string) => void }) {
+function CountriesTab({ onMessage, canEdit }: { onMessage: (m: string) => void; canEdit: boolean }) {
   const t = useTab(api.getCountries, api.createCountry, api.updateCountry, api.deleteCountry);
   const [bulkOpen, setBulkOpen] = useState(false);
 
@@ -625,9 +634,9 @@ function CountriesTab({ onMessage }: { onMessage: (m: string) => void }) {
       <Box sx={{ display:"flex", justifyContent:"space-between", alignItems:"center", mb:2 }}>
         <Typography variant="h6" fontWeight={700}>🌍 Popular Countries ({t.rows.length})</Typography>
         <Box sx={{ display:"flex", gap:1 }}>
-          <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>
+          {canEdit && <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>Bulk Import</Button>}
           <Button size="small" variant="outlined" startIcon={<ReloadOutlined />} onClick={t.load}>Refresh</Button>
-          <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={() => t.openCreate()}>Add Country</Button>
+          {canEdit && <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={() => t.openCreate()}>Add Country</Button>}
         </Box>
       </Box>
       {t.error && <Alert severity="error" sx={{ mb:2 }}>{t.error}</Alert>}
@@ -646,8 +655,9 @@ function CountriesTab({ onMessage }: { onMessage: (m: string) => void }) {
                   <TableCell><Typography variant="caption" color="text.secondary">{r.tagline}</Typography></TableCell>
                   <TableCell><Chip label={r.isActive?"Active":"Hidden"} color={r.isActive?"success":"default"} size="small" /></TableCell>
                   <TableCell>
-                    <Tooltip title="Edit"><IconButton size="small" onClick={() => t.openEdit(r)}><EditOutlined /></IconButton></Tooltip>
-                    <Tooltip title="Delete"><IconButton size="small" style={{ color:"#d32f2f" }} onClick={() => t.setDelItem(r)}><DeleteOutlined /></IconButton></Tooltip>
+                    {canEdit && <Tooltip title="Edit"><IconButton size="small" onClick={() => t.openEdit(r)}><EditOutlined /></IconButton></Tooltip>}
+                    {canEdit && <Tooltip title="Delete"><IconButton size="small" style={{ color:"#d32f2f" }} onClick={() => t.setDelItem(r)}><DeleteOutlined /></IconButton></Tooltip>}
+                    {!canEdit && <Typography variant="caption" color="text.secondary">View only</Typography>}
                   </TableCell>
                 </TableRow>
               ))}
@@ -696,15 +706,18 @@ function SeedButton({ onMessage }: { onMessage: (m: string) => void }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PopularContentPage() {
+  const { can } = useUserContext();
+  const canEdit = can(PERMISSIONS.CONTENT_POPULAR_EDIT);
+
   const [tab, setTab] = useState(0);
   const [snack, setSnack] = useState("");
 
   const TABS = [
-    { label:"🗺️ Popular Routes", component:<PopularRoutesTab onMessage={setSnack} /> },
-    { label:"✈️ Flight Routes",   component:<FlightRoutesTab onMessage={setSnack} /> },
-    { label:"🏨 Hotels",          component:<HotelsTab onMessage={setSnack} /> },
-    { label:"🏙️ Cities",         component:<CitiesTab onMessage={setSnack} /> },
-    { label:"🌍 Countries",       component:<CountriesTab onMessage={setSnack} /> },
+    { label:"🗺️ Popular Routes", component:<PopularRoutesTab onMessage={setSnack} canEdit={canEdit} /> },
+    { label:"✈️ Flight Routes",   component:<FlightRoutesTab onMessage={setSnack} canEdit={canEdit} /> },
+    { label:"🏨 Hotels",          component:<HotelsTab onMessage={setSnack} canEdit={canEdit} /> },
+    { label:"🏙️ Cities",         component:<CitiesTab onMessage={setSnack} canEdit={canEdit} /> },
+    { label:"🌍 Countries",       component:<CountriesTab onMessage={setSnack} canEdit={canEdit} /> },
   ];
 
   return (

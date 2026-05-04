@@ -1,4 +1,5 @@
 import { DashboardOutlined } from '@ant-design/icons';
+import { PERMISSIONS } from '../constants/permissions';
 
 const dashboard = {
   id: 'group-dashboard',
@@ -11,6 +12,7 @@ const dashboard = {
       type: 'item',
       url: '/dashboard',
       icon: DashboardOutlined,
+      permission: PERMISSIONS.DASHBOARD_VIEW,
       breadcrumbs: false,
     },
   ],

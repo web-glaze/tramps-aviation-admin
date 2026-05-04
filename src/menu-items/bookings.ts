@@ -1,6 +1,7 @@
 import {
   BookOutlined, CarOutlined, HomeOutlined, InsuranceOutlined,
 } from '@ant-design/icons';
+import { PERMISSIONS } from '../constants/permissions';
 
 const BookingPages = {
   id: 'bookings-group',
@@ -13,6 +14,7 @@ const BookingPages = {
       type: 'item',
       url: '/bookings',
       icon: BookOutlined,
+      permission: PERMISSIONS.BOOKINGS_VIEW,
     },
     {
       id: 'flights',
@@ -20,6 +22,7 @@ const BookingPages = {
       type: 'item',
       url: '/flights',
       icon: CarOutlined,
+      permission: PERMISSIONS.BOOKINGS_VIEW,
     },
     {
       id: 'hotels',
@@ -27,6 +30,7 @@ const BookingPages = {
       type: 'item',
       url: '/hotels',
       icon: HomeOutlined,
+      permission: PERMISSIONS.BOOKINGS_VIEW,
     },
     {
       id: 'insurance',
@@ -34,6 +38,7 @@ const BookingPages = {
       type: 'item',
       url: '/insurance',
       icon: InsuranceOutlined,
+      permission: PERMISSIONS.BOOKINGS_VIEW,
     },
   ],
 };

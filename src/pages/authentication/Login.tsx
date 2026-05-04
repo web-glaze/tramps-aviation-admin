@@ -6,6 +6,8 @@ import {
 } from '@mui/material';
 import { EyeOutlined, EyeInvisibleOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import useUserContext from '../../hooks/useUser';
+import Logo from '../../components/Logo';
+import { BRAND } from '../../themes/palette';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -33,7 +35,14 @@ export default function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #e6f4ff 0%, #f0f5ff 50%, #fff 100%)',
+        // Brand-blue dominant page (~80%) with a brand-orange glow in the
+        // bottom-right corner (~20% accent). Both colours are taken straight
+        // from the logo (#209ACD blue + #CF4D26 orange).
+        background: `
+          radial-gradient(circle at 100% 100%, ${BRAND.ORANGE_TINT} 0%, transparent 35%),
+          radial-gradient(circle at 0% 0%, ${BRAND.BLUE_TINT} 0%, transparent 50%),
+          linear-gradient(135deg, ${BRAND.BLUE_TINT} 0%, #ffffff 60%, ${BRAND.ORANGE_TINT} 100%)
+        `,
         p: 2,
       }}
     >
@@ -41,37 +50,34 @@ export default function Login() {
         elevation={0}
         sx={{
           width: '100%',
-          maxWidth: 420,
+          maxWidth: 440,
           border: '1px solid',
-          borderColor: 'divider',
+          borderColor: BRAND.BLUE_LIGHT,
           borderRadius: 3,
-          boxShadow: '0 8px 40px rgba(0,0,0,0.08)',
+          boxShadow: `0 12px 40px rgba(32, 154, 205, 0.18)`,
+          overflow: 'hidden',
+          position: 'relative',
+          // Brand-orange top stripe — the 20% accent moment on this card
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0, left: 0, right: 0,
+            height: 4,
+            background: BRAND.GRADIENT_BRAND,
+          },
         }}
       >
         <CardContent sx={{ p: 4 }}>
-          {/* Logo */}
+          {/* Logo — single source of truth in <Logo /> component */}
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Box
-              sx={{
-                width: 56,
-                height: 56,
-                borderRadius: 3,
-                background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mx: 'auto',
-                mb: 2,
-                fontSize: 28,
-              }}
-            >
-              ✈️
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+              <Logo size={64} withHalo />
             </Box>
-            <Typography variant="h4" fontWeight={700} gutterBottom>
-              Tramps Aviation Admin
+            <Typography variant="h4" fontWeight={800} gutterBottom sx={{ color: BRAND.BLUE, letterSpacing: '-0.02em' }}>
+              Tramps Aviation
             </Typography>
-            <Typography color="text.secondary" variant="body2">
-              Sign in to manage your Tramps Aviation
+            <Typography variant="body2" sx={{ color: BRAND.ORANGE, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.7rem' }}>
+              Admin Control Panel
             </Typography>
           </Box>
 
@@ -92,7 +98,7 @@ export default function Login() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <MailOutlined style={{ color: '#8c8c8c' }} />
+                    <MailOutlined style={{ color: BRAND.BLUE }} />
                   </InputAdornment>
                 ),
               }}
@@ -108,7 +114,7 @@ export default function Login() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockOutlined style={{ color: '#8c8c8c' }} />
+                    <LockOutlined style={{ color: BRAND.BLUE }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
@@ -127,7 +133,21 @@ export default function Login() {
               fullWidth
               size="large"
               disabled={loading}
-              sx={{ mt: 1, py: 1.4, borderRadius: 2, fontWeight: 600, fontSize: '0.95rem' }}
+              sx={{
+                mt: 1,
+                py: 1.4,
+                borderRadius: 2,
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                background: BRAND.GRADIENT_BLUE,
+                boxShadow: `0 4px 14px rgba(32, 154, 205, 0.35)`,
+                '&:hover': {
+                  background: BRAND.GRADIENT_BLUE,
+                  boxShadow: `0 6px 20px rgba(32, 154, 205, 0.45)`,
+                  transform: 'translateY(-1px)',
+                },
+                transition: 'all 0.2s ease',
+              }}
             >
               {loading ? <CircularProgress size={22} color="inherit" /> : 'Sign In'}
             </Button>

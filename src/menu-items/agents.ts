@@ -1,6 +1,7 @@
 import {
   TeamOutlined, UserOutlined, SafetyCertificateOutlined, FileSearchOutlined,
 } from '@ant-design/icons';
+import { PERMISSIONS } from '../constants/permissions';
 
 const AgentPages = {
   id: 'agents-group',
@@ -13,6 +14,7 @@ const AgentPages = {
       type: 'item',
       url: '/agents',
       icon: TeamOutlined,
+      permission: PERMISSIONS.AGENTS_VIEW,
     },
     {
       id: 'customers',
@@ -20,6 +22,7 @@ const AgentPages = {
       type: 'item',
       url: '/customers',
       icon: UserOutlined,
+      permission: PERMISSIONS.CUSTOMERS_VIEW,
     },
     {
       id: 'kyc',
@@ -27,6 +30,7 @@ const AgentPages = {
       type: 'item',
       url: '/kyc',
       icon: SafetyCertificateOutlined,
+      permission: PERMISSIONS.KYC_VIEW,
     },
     {
       id: 'subagents',
@@ -34,6 +38,7 @@ const AgentPages = {
       type: 'item',
       url: '/subagents',
       icon: FileSearchOutlined,
+      permission: PERMISSIONS.AGENTS_VIEW,
     },
   ],
 };

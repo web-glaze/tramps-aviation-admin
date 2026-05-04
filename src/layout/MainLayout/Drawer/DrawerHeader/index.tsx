@@ -1,5 +1,7 @@
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import useMenu from '../../../../hooks/useMenu';
+import Logo from '../../../../components/Logo';
+import { BRAND } from '../../../../themes/palette';
 
 const DrawerHeader = () => {
   const { menu } = useMenu();
@@ -10,40 +12,20 @@ const DrawerHeader = () => {
       sx={{
         display: 'flex',
         alignItems: 'center',
-        px: drawerOpen ? 3 : 1.5,
+        px: drawerOpen ? 2 : 1.5,
         py: 2,
         minHeight: 60,
-        borderBottom: '1px solid',
-        borderColor: 'divider',
-        gap: 1.5,
+        // Brand-blue gradient stripe at the top of the sidebar — anchors the
+        // 80% blue brand colour right where the eye lands first.
+        background: BRAND.GRADIENT_BLUE,
+        borderBottom: `3px solid ${BRAND.ORANGE}`, // 20% orange accent
+        boxShadow: `0 2px 8px rgba(32, 154, 205, 0.25)`,
       }}
     >
-      {/* Logo Icon */}
-      <Box
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: 2,
-          background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          fontSize: 18,
-        }}
-      >
-        ✈️
-      </Box>
-
-      {drawerOpen && (
-        <Box>
-          <Typography variant="h5" sx={{ color: 'primary.main', fontWeight: 700, lineHeight: 1 }}>
-            Tramps Aviation
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Platform Control Panel
-          </Typography>
-        </Box>
+      {drawerOpen ? (
+        <Logo size={32} withWordmark variant="dark" />
+      ) : (
+        <Logo size={32} />
       )}
     </Box>
   );

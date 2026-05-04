@@ -6,6 +6,17 @@ import {
 import { SaveOutlined, SwapOutlined } from '@ant-design/icons';
 import { settingsApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useUserContext from '../../hooks/useUser';
+import { PERMISSIONS } from '../../constants/permissions';
+
+// Products that can have per-product markup / commission toggled by admin.
+// Order here drives the rendering order in the "Feature Toggles" card below.
+type FeatureProduct = 'flight' | 'hotel' | 'series';
+const FEATURE_PRODUCTS: { key: FeatureProduct; label: string; emoji: string }[] = [
+  { key: 'flight', label: 'Flights',      emoji: '✈️' },
+  { key: 'hotel',  label: 'Hotels',       emoji: '🏨' },
+  { key: 'series', label: 'Series Fares', emoji: '🎫' },
+];
 
 const defaultSettings = {
   platformName: 'Tramps Aviation',
@@ -39,6 +50,13 @@ const defaultSettings = {
   gstNumber: '',
   panNumber: '',
   cinNumber: '',
+  // ── Per-product feature flags ──────────────────────────────────────────────
+  // These two arrays decide which products are "live" for agents in the B2B
+  // portal. Anything not in the list is force-disabled — agents see a lock
+  // icon on the matching markup row, and search results omit commission for
+  // that product.
+  markupEnabledProducts:     ['flight', 'hotel', 'series'] as FeatureProduct[],
+  commissionEnabledProducts: ['flight', 'hotel', 'series'] as FeatureProduct[],
 };
 
 const defaultPricing = {
@@ -49,6 +67,9 @@ const defaultPricing = {
 };
 
 export default function SettingsPage() {
+  const { can } = useUserContext();
+  const canEdit = can(PERMISSIONS.SETTINGS_EDIT);
+
   const [settings, setSettings] = useState<any>(defaultSettings);
   const [pricing, setPricing]   = useState<any>(defaultPricing);
   const [snack, setSnack]       = useState({ open: false, msg: '', sev: 'success' as any });
@@ -56,7 +77,20 @@ export default function SettingsPage() {
   useEffect(() => {
     settingsApi.get().then(res => {
       const d = res.data?.data || res.data;
-      if (d) setSettings((s: any) => ({ ...s, ...d }));
+      if (!d) return;
+      setSettings((s: any) => ({
+        ...s,
+        ...d,
+        // Settings docs created before the feature-flag schema landed don't
+        // have these arrays — fall back to "all enabled" so the admin UI
+        // doesn't render empty toggles that would silently disable products.
+        markupEnabledProducts:     Array.isArray(d.markupEnabledProducts)
+          ? d.markupEnabledProducts
+          : s.markupEnabledProducts,
+        commissionEnabledProducts: Array.isArray(d.commissionEnabledProducts)
+          ? d.commissionEnabledProducts
+          : s.commissionEnabledProducts,
+      }));
     }).catch(() => {});
 
     settingsApi.getPricingRules().then(res => {
@@ -66,6 +100,42 @@ export default function SettingsPage() {
   }, []);
 
   const set = (key: string, val: any) => setSettings((s: any) => ({ ...s, [key]: val }));
+
+  // ── Feature-flag helpers ─────────────────────────────────────────────────
+  // The flag arrays use add/remove rather than a flat boolean per product so
+  // we can extend later (e.g. 'cruise', 'visa') without touching the schema.
+  const isFeatureOn = (
+    field: 'markupEnabledProducts' | 'commissionEnabledProducts',
+    product: FeatureProduct,
+  ): boolean => {
+    const list = settings[field] as FeatureProduct[] | undefined;
+    return Array.isArray(list) ? list.includes(product) : true;
+  };
+
+  const toggleFeature = (
+    field: 'markupEnabledProducts' | 'commissionEnabledProducts',
+    product: FeatureProduct,
+  ) => {
+    setSettings((s: any) => {
+      const cur: FeatureProduct[] = Array.isArray(s[field]) ? s[field] : ['flight', 'hotel', 'series'];
+      const next = cur.includes(product)
+        ? cur.filter((p) => p !== product)
+        : [...cur, product];
+      return { ...s, [field]: next };
+    });
+  };
+
+  const handleSaveFeatureFlags = async () => {
+    try {
+      await settingsApi.update({
+        markupEnabledProducts:     settings.markupEnabledProducts,
+        commissionEnabledProducts: settings.commissionEnabledProducts,
+      });
+      setSnack({ open: true, msg: '✅ Feature toggles saved!', sev: 'success' });
+    } catch {
+      setSnack({ open: true, msg: '❌ Failed to save feature toggles', sev: 'error' });
+    }
+  };
 
   const handleSaveGeneral = async () => {
     try {
@@ -173,7 +243,7 @@ export default function SettingsPage() {
                   } />
               </Grid>
               <Grid size={12}>
-                <Button variant="contained" startIcon={<SaveOutlined />} onClick={handleSaveGeneral} fullWidth>
+                <Button variant="contained" startIcon={<SaveOutlined />} onClick={handleSaveGeneral} fullWidth disabled={!canEdit}>
                   Save General Settings
                 </Button>
               </Grid>
@@ -210,7 +280,7 @@ export default function SettingsPage() {
               </Typography>
             </Card>
             <Box sx={{ mt: 2 }}>
-              <Button variant="contained" startIcon={<SaveOutlined />} onClick={handleSaveGeneral} fullWidth>
+              <Button variant="contained" startIcon={<SaveOutlined />} onClick={handleSaveGeneral} fullWidth disabled={!canEdit}>
                 Save ID Format
               </Button>
             </Box>
@@ -255,7 +325,7 @@ export default function SettingsPage() {
                   value={s.cinNumber || ''} onChange={e => set('cinNumber', e.target.value.toUpperCase())} />
               </Grid>
               <Grid size={12}>
-                <Button variant="contained" startIcon={<SaveOutlined />} onClick={handleSaveGeneral} fullWidth>
+                <Button variant="contained" startIcon={<SaveOutlined />} onClick={handleSaveGeneral} fullWidth disabled={!canEdit}>
                   Save Address & Details
                 </Button>
               </Grid>
@@ -287,7 +357,7 @@ export default function SettingsPage() {
                 </Grid>
               ))}
               <Grid size={12}>
-                <Button variant="contained" startIcon={<SaveOutlined />} onClick={handleSaveGeneral} fullWidth>
+                <Button variant="contained" startIcon={<SaveOutlined />} onClick={handleSaveGeneral} fullWidth disabled={!canEdit}>
                   Save Social Links
                 </Button>
               </Grid>
@@ -315,7 +385,7 @@ export default function SettingsPage() {
                 </Grid>
               ))}
               <Grid size={12}>
-                <Button variant="contained" color="secondary" startIcon={<SaveOutlined />} onClick={handleSavePricing} fullWidth>
+                <Button variant="contained" color="secondary" startIcon={<SaveOutlined />} onClick={handleSavePricing} fullWidth disabled={!canEdit}>
                   Save Pricing Rules
                 </Button>
               </Grid>
@@ -325,6 +395,110 @@ export default function SettingsPage() {
                 <strong>ℹ️ How Markup Works:</strong> Markup % is added on top of supplier cost.
                 E.g. 2% flight markup on ₹10,000 fare → ₹10,200 shown to B2B agents.
                 B2B Discount is deducted from final price for verified agents.
+              </Typography>
+            </Card>
+          </MainCard>
+
+          {/* ── Per-Product Feature Toggles ──────────────────────────────────
+              Controls which products allow agents to (a) configure their own
+              markup and (b) earn commission. Disabling a product here:
+                • locks the matching row in the agent's /b2b/markup page
+                • hides the markup banner from the agent's /b2b/<product> search
+                • strips commission from search-results decoration server-side
+          */}
+          <MainCard title="🎯 Per-Product Feature Toggles" sx={{ mt: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Decide which products allow agents to configure markup and earn
+              commission. Anything turned OFF here disappears for agents in
+              real-time — no redeploy required.
+            </Typography>
+
+            {/* Header row */}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 140px 140px',
+                alignItems: 'center',
+                px: 2, py: 1,
+                bgcolor: 'grey.50',
+                borderRadius: 1.5,
+                fontWeight: 700,
+              }}
+            >
+              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>PRODUCT</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textAlign: 'center' }}>ALLOW MARKUP</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textAlign: 'center' }}>ALLOW COMMISSION</Typography>
+            </Box>
+
+            {/* Per-product rows */}
+            {FEATURE_PRODUCTS.map(({ key, label, emoji }) => {
+              const markupOn     = isFeatureOn('markupEnabledProducts',     key);
+              const commissionOn = isFeatureOn('commissionEnabledProducts', key);
+              return (
+                <Box
+                  key={key}
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 140px 140px',
+                    alignItems: 'center',
+                    px: 2, py: 1.5,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    '&:last-of-type': { borderBottom: 'none' },
+                  }}
+                >
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {emoji} {label}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {!markupOn && !commissionOn
+                        ? 'Both disabled — agents see no markup row & no commission'
+                        : !markupOn
+                          ? 'Commission only — agents can\'t mark up'
+                          : !commissionOn
+                            ? 'Markup only — no commission paid'
+                            : 'Fully enabled'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <Switch
+                      checked={markupOn}
+                      onChange={() => toggleFeature('markupEnabledProducts', key)}
+                      disabled={!canEdit}
+                      color="primary"
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <Switch
+                      checked={commissionOn}
+                      onChange={() => toggleFeature('commissionEnabledProducts', key)}
+                      disabled={!canEdit}
+                      color="success"
+                    />
+                  </Box>
+                </Box>
+              );
+            })}
+
+            <Box sx={{ mt: 2 }}>
+              <Button
+                variant="contained"
+                startIcon={<SaveOutlined />}
+                onClick={handleSaveFeatureFlags}
+                fullWidth
+                disabled={!canEdit}
+              >
+                Save Feature Toggles
+              </Button>
+            </Box>
+
+            <Card elevation={0} sx={{ mt: 2, p: 1.5, bgcolor: 'warning.lighter', borderRadius: 2, border: '1px solid', borderColor: 'warning.light' }}>
+              <Typography variant="body2" color="warning.dark">
+                <strong>⚠️ Effect on agents:</strong> Disabling a product here
+                takes effect within ~10 minutes (or on next agent page reload).
+                The agent keeps their saved markup value — turning the toggle
+                back ON restores it without manual re-entry.
               </Typography>
             </Card>
           </MainCard>

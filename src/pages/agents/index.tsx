@@ -12,12 +12,19 @@ import {
 } from '@ant-design/icons';
 import { agentsApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useUserContext from '../../hooks/useUser';
+import { PERMISSIONS } from '../../constants/permissions';
 
 const statusColor: Record<string, any> = {
   active: 'success', suspended: 'error', pending: 'warning', inactive: 'warning',
 };
 
 export default function AgentsPage() {
+  const { can } = useUserContext();
+  const canApprove      = can(PERMISSIONS.AGENTS_APPROVE);
+  const canSuspend      = can(PERMISSIONS.AGENTS_SUSPEND);
+  const canWalletAdjust = can(PERMISSIONS.AGENTS_WALLET_ADJUST);
+
   const [agents, setAgents]           = useState<any[]>([]);
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState('');
@@ -183,19 +190,21 @@ export default function AgentsPage() {
                           </IconButton>
                         </Tooltip>
                         {/* 💰 Wallet Credit button */}
-                        <Tooltip title="Credit Wallet">
-                          <IconButton size="small" color="success" onClick={() => openWalletCredit(a)}>
-                            <WalletOutlined />
-                          </IconButton>
-                        </Tooltip>
-                        {a.status !== 'active' && (
+                        {canWalletAdjust && (
+                          <Tooltip title="Credit Wallet">
+                            <IconButton size="small" color="success" onClick={() => openWalletCredit(a)}>
+                              <WalletOutlined />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {canApprove && a.status !== 'active' && (
                           <Tooltip title="Approve">
                             <IconButton size="small" color="success" onClick={() => handleApprove(a._id)}>
                               <CheckCircleOutlined />
                             </IconButton>
                           </Tooltip>
                         )}
-                        {a.status === 'active' && (
+                        {canSuspend && a.status === 'active' && (
                           <Tooltip title="Suspend">
                             <IconButton size="small" color="warning" onClick={() => handleSuspend(a._id)}>
                               <StopOutlined />
@@ -248,7 +257,7 @@ export default function AgentsPage() {
           )}
         </DialogContent>
         <DialogActions>
-          {selectedAgent && (
+          {selectedAgent && canWalletAdjust && (
             <Button color="success" startIcon={<WalletOutlined />} onClick={() => { setViewOpen(false); openWalletCredit(selectedAgent); }}>
               Credit Wallet
             </Button>

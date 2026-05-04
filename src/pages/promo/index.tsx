@@ -8,10 +8,17 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { promoApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useUserContext from '../../hooks/useUser';
+import { PERMISSIONS } from '../../constants/permissions';
 
 const emptyForm = { code: '', discountType: 'percentage', discountValue: '', minBookingAmount: '', maxUsage: '', expiryDate: '', description: '', isActive: true };
 
 export default function PromoPage() {
+  const { can } = useUserContext();
+  const canCreate = can(PERMISSIONS.PROMOS_CREATE);
+  const canEdit   = can(PERMISSIONS.PROMOS_EDIT);
+  const canDelete = can(PERMISSIONS.PROMOS_DELETE);
+
   const [promos, setPromos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -69,7 +76,7 @@ export default function PromoPage() {
           <Typography variant="h4" fontWeight={700} gutterBottom>Promo Codes</Typography>
           <Typography color="text.secondary" variant="body2">Manage discount and promotional codes for customers</Typography>
         </Box>
-        <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>Create Promo</Button>
+        {canCreate && <Button variant="contained" startIcon={<PlusOutlined />} onClick={openCreate}>Create Promo</Button>}
       </Box>
 
       <MainCard>
@@ -93,7 +100,7 @@ export default function PromoPage() {
                 <TableRow>
                   <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                     <Typography color="text.secondary">No promo codes yet.</Typography>
-                    <Button variant="outlined" startIcon={<PlusOutlined />} onClick={openCreate} sx={{ mt: 1.5 }}>Create First Promo</Button>
+                    {canCreate && <Button variant="outlined" startIcon={<PlusOutlined />} onClick={openCreate} sx={{ mt: 1.5 }}>Create First Promo</Button>}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -116,8 +123,9 @@ export default function PromoPage() {
                     </TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <Tooltip title="Edit"><IconButton size="small" color="primary" onClick={() => openEdit(p)}><EditOutlined /></IconButton></Tooltip>
-                        <Tooltip title="Delete"><IconButton size="small" color="error" onClick={() => handleDelete(p._id)}><DeleteOutlined /></IconButton></Tooltip>
+                        {canEdit   && <Tooltip title="Edit"><IconButton size="small" color="primary" onClick={() => openEdit(p)}><EditOutlined /></IconButton></Tooltip>}
+                        {canDelete && <Tooltip title="Delete"><IconButton size="small" color="error" onClick={() => handleDelete(p._id)}><DeleteOutlined /></IconButton></Tooltip>}
+                        {!canEdit && !canDelete && <Typography variant="caption" color="text.secondary">View only</Typography>}
                       </Box>
                     </TableCell>
                   </TableRow>

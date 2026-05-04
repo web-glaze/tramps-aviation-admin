@@ -13,6 +13,8 @@ import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../api';
 import MainCard from '../../components/MainCard';
 import useUserContext from '../../hooks/useUser';
+import Logo from '../../components/Logo';
+import { BRAND } from '../../themes/palette';
 
 const fmtINR = (n: number = 0) =>
   `₹${n.toLocaleString('en-IN')}`;
@@ -112,18 +114,53 @@ export default function Dashboard() {
 
   return (
     <Box>
-      {/* Welcome Banner */}
-      <MainCard sx={{ mb: 3, background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)', border: 'none' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Welcome Banner — brand-blue surface with an orange accent bar */}
+      <MainCard
+        sx={{
+          mb: 3,
+          background: BRAND.GRADIENT_BLUE,
+          border: 'none',
+          position: 'relative',
+          overflow: 'hidden',
+          // Brand-orange decorative blob in the corner — the 20% accent
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: -40, right: -40,
+            width: 200, height: 200,
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${BRAND.ORANGE} 0%, transparent 70%)`,
+            opacity: 0.35,
+            pointerEvents: 'none',
+          },
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
           <Box>
-            <Typography variant="h4" color="white" fontWeight={700} gutterBottom>
+            <Typography variant="h4" color="white" fontWeight={800} gutterBottom sx={{ letterSpacing: '-0.02em' }}>
               Welcome Back, {user?.name || 'Admin'}! 👋
             </Typography>
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.92)' }}>
               Here's what's happening on your travel platform today.
             </Typography>
           </Box>
-          <Box sx={{ fontSize: 64, opacity: 0.8, display: { xs: 'none', sm: 'block' } }}>✈️</Box>
+          {/* Brand logo on a translucent halo */}
+          <Box
+            sx={{
+              display: { xs: 'none', sm: 'flex' },
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 96,
+              height: 96,
+              borderRadius: 3,
+              background: 'rgba(255,255,255,0.22)',
+              backdropFilter: 'blur(6px)',
+              border: '2px solid rgba(255,255,255,0.35)',
+              boxShadow: `0 8px 24px rgba(0,0,0,0.18)`,
+            }}
+          >
+            <Logo size={64} />
+          </Box>
         </Box>
       </MainCard>
 

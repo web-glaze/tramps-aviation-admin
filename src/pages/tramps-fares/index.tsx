@@ -52,6 +52,8 @@ import {
 } from "@ant-design/icons";
 import { trampsAviationFaresApi } from "../../api";
 import MainCard from "../../components/MainCard";
+import useUserContext from "../../hooks/useUser";
+import { PERMISSIONS } from "../../constants/permissions";
 
 const emptySegment = {
   flightNumber: "",
@@ -484,6 +486,9 @@ const BULK_HINTS = {
 };
 
 export default function TrampsTicketsPage() {
+  const { can } = useUserContext();
+  const canEdit = can(PERMISSIONS.CONTENT_FARES_EDIT);
+
   const [tabIdx, setTabIdx] = useState(0);
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -873,27 +878,31 @@ export default function TrampsTicketsPage() {
                 <ReloadOutlined />
               </IconButton>
             </Tooltip>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<ImportOutlined />}
-              onClick={() => {
-                setBulkText("");
-                setBulkPreview([]);
-                setBulkErrors([]);
-                setBulkOpen(true);
-              }}
-            >
-              Bulk Import
-            </Button>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<PlusOutlined />}
-              onClick={openAdd}
-            >
-              Add {type}
-            </Button>
+            {canEdit && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ImportOutlined />}
+                onClick={() => {
+                  setBulkText("");
+                  setBulkPreview([]);
+                  setBulkErrors([]);
+                  setBulkOpen(true);
+                }}
+              >
+                Bulk Import
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<PlusOutlined />}
+                onClick={openAdd}
+              >
+                Add {type}
+              </Button>
+            )}
           </Stack>
         </Box>
 
@@ -1260,17 +1269,19 @@ export default function TrampsTicketsPage() {
                           flexWrap: "wrap",
                         }}
                       >
-                        <Tooltip title="Edit">
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            onClick={() => openEdit(r)}
-                          >
-                            <EditOutlined />
-                          </IconButton>
-                        </Tooltip>
+                        {canEdit && (
+                          <Tooltip title="Edit">
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => openEdit(r)}
+                            >
+                              <EditOutlined />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         {/* PNR Pool button — only for flights */}
-                        {r.type === "flight" && (
+                        {canEdit && r.type === "flight" && (
                           <Tooltip
                             title={`PNR Pool: ${(r.pnrPool || []).length} PNR(s) available`}
                           >
@@ -1297,28 +1308,32 @@ export default function TrampsTicketsPage() {
                             </IconButton>
                           </Tooltip>
                         )}
-                        <Tooltip title={r.isActive ? "Deactivate" : "Activate"}>
-                          <IconButton
-                            size="small"
-                            color={r.isActive ? "warning" : "success"}
-                            onClick={() => handleToggle(r)}
-                          >
-                            {r.isActive ? (
-                              <StopOutlined />
-                            ) : (
-                              <CheckCircleOutlined />
-                            )}
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => setDeleteTarget(r)}
-                          >
-                            <DeleteOutlined />
-                          </IconButton>
-                        </Tooltip>
+                        {canEdit && (
+                          <Tooltip title={r.isActive ? "Deactivate" : "Activate"}>
+                            <IconButton
+                              size="small"
+                              color={r.isActive ? "warning" : "success"}
+                              onClick={() => handleToggle(r)}
+                            >
+                              {r.isActive ? (
+                                <StopOutlined />
+                              ) : (
+                                <CheckCircleOutlined />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {canEdit && (
+                          <Tooltip title="Delete">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => setDeleteTarget(r)}
+                            >
+                              <DeleteOutlined />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -2173,10 +2188,23 @@ export default function TrampsTicketsPage() {
                 variant="caption"
                 color="warning.dark"
                 fontWeight={600}
+                display="block"
               >
                 💡 Multi-stop flights: set Stops + ViaAirport in the import.
                 After import, open Edit on the ticket to add full segment
                 details via "Add Segment".
+              </Typography>
+              <Typography
+                variant="caption"
+                color="success.dark"
+                fontWeight={600}
+                display="block"
+                sx={{ mt: 0.5 }}
+              >
+                🎟️ Placeholder PNRs are auto-seeded for every imported ticket
+                (one per available seat, format <code>TR&lt;hash&gt;001</code>),
+                so agents can book immediately. Replace them with real airline
+                PNRs later via the 🎟️ icon on each row.
               </Typography>
             </Box>
           )}

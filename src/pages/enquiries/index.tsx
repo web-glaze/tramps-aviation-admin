@@ -12,6 +12,8 @@ import {
 } from '@ant-design/icons';
 import apiClient from '../../api';
 import MainCard from '../../components/MainCard';
+import useUserContext from '../../hooks/useUser';
+import { PERMISSIONS } from '../../constants/permissions';
 
 const contactApi = {
   getAll:   (p: any)   => apiClient.get('/contact/admin/enquiries', { params: p }),
@@ -35,6 +37,9 @@ const USER_TYPE_COLOR: Record<string, any> = {
 };
 
 export default function EnquiriesPage() {
+  const { can } = useUserContext();
+  const canEdit = can(PERMISSIONS.CONTENT_ENQUIRIES_EDIT);
+
   const [rows, setRows]           = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
   const [stats, setStats]         = useState<any>({});
@@ -206,16 +211,20 @@ export default function EnquiriesPage() {
                     <Tooltip title="View & Reply">
                       <IconButton size="small" color="primary" onClick={() => handleView(r)}><EyeOutlined /></IconButton>
                     </Tooltip>
-                    <Tooltip title="Mark Resolved">
-                      <IconButton size="small" color="success" onClick={() => handleUpdateStatus(r._id, 'resolved')}>
-                        <CheckCircleOutlined />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <IconButton size="small" color="error" onClick={() => handleDelete(r._id)}>
-                        <DeleteOutlined />
-                      </IconButton>
-                    </Tooltip>
+                    {canEdit && (
+                      <Tooltip title="Mark Resolved">
+                        <IconButton size="small" color="success" onClick={() => handleUpdateStatus(r._id, 'resolved')}>
+                          <CheckCircleOutlined />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {canEdit && (
+                      <Tooltip title="Delete">
+                        <IconButton size="small" color="error" onClick={() => handleDelete(r._id)}>
+                          <DeleteOutlined />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -245,7 +254,8 @@ export default function EnquiriesPage() {
               {['new','in_progress','resolved','closed'].map(s => (
                 <Chip key={s} label={s.replace('_',' ')} size="small"
                   color={STATUS_COLOR[s]} variant={selected.status === s ? 'filled' : 'outlined'}
-                  onClick={() => handleUpdateStatus(selected._id, s)} sx={{ cursor: 'pointer' }} />
+                  onClick={() => canEdit && handleUpdateStatus(selected._id, s)}
+                  sx={{ cursor: canEdit ? 'pointer' : 'default' }} />
               ))}
             </Box>
           )}
@@ -284,9 +294,10 @@ export default function EnquiriesPage() {
               <Grid size={{ xs: 12, md: 5 }}>
                 <Typography variant="subtitle2" fontWeight={700} gutterBottom>📧 Reply via Email</Typography>
                 <TextField fullWidth multiline rows={5} placeholder="Type your reply here..."
-                  value={replyText} onChange={e => setReplyText(e.target.value)} sx={{ mb: 1 }} />
+                  value={replyText} onChange={e => setReplyText(e.target.value)} sx={{ mb: 1 }}
+                  disabled={!canEdit} />
                 <Button fullWidth variant="contained" startIcon={replying ? undefined : <SendOutlined />}
-                  disabled={!replyText.trim() || replying} onClick={handleReply}>
+                  disabled={!canEdit || !replyText.trim() || replying} onClick={handleReply}>
                   {replying ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null} Send Reply
                 </Button>
 
@@ -294,8 +305,9 @@ export default function EnquiriesPage() {
 
                 <Typography variant="subtitle2" fontWeight={700} gutterBottom>📝 Internal Note</Typography>
                 <TextField fullWidth multiline rows={3} placeholder="Add internal note (not sent to user)..."
-                  value={adminNote} onChange={e => setAdminNote(e.target.value)} sx={{ mb: 1 }} />
-                <Button fullWidth variant="outlined" onClick={handleSaveNote}>Save Note</Button>
+                  value={adminNote} onChange={e => setAdminNote(e.target.value)} sx={{ mb: 1 }}
+                  disabled={!canEdit} />
+                {canEdit && <Button fullWidth variant="outlined" onClick={handleSaveNote}>Save Note</Button>}
 
                 {selected.resolvedAt && (
                   <Alert severity="success" sx={{ mt: 2 }}>
@@ -308,9 +320,11 @@ export default function EnquiriesPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button color="error" startIcon={<DeleteOutlined />} onClick={() => selected && handleDelete(selected._id)}>
-            Delete
-          </Button>
+          {canEdit && (
+            <Button color="error" startIcon={<DeleteOutlined />} onClick={() => selected && handleDelete(selected._id)}>
+              Delete
+            </Button>
+          )}
           <Button onClick={() => setViewOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>

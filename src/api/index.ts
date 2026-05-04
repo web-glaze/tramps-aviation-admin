@@ -33,6 +33,18 @@ export const authApi = {
   changePassword: (data: any) => apiClient.post('/auth/change-password', data),
 };
 
+export const rbacApi = {
+  getPermissions: () => apiClient.get('/admin/rbac/permissions'),
+};
+
+export const adminUsersApi = {
+  getAll: (params?: any) => apiClient.get('/admin/admin-users', { params }),
+  create: (data: any) => apiClient.post('/admin/admin-users', data),
+  update: (id: string, data: any) => apiClient.patch(`/admin/admin-users/${id}`, data),
+  updatePassword: (id: string, data: any) => apiClient.patch(`/admin/admin-users/${id}/password`, data),
+  remove: (id: string) => apiClient.delete(`/admin/admin-users/${id}`),
+};
+
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 export const dashboardApi = {
   getStats: () => apiClient.get('/admin/dashboard'),
@@ -126,6 +138,16 @@ export const settingsApi = {
   update: (data: any) => apiClient.put('/admin/settings', data),
   getPricingRules: () => apiClient.get('/admin/pricing'),
   updatePricingRules: (data: any) => apiClient.put('/admin/pricing', data),
+};
+
+// ─── POPULAR ROUTES (dedicated, sub-admin friendly) ──────────────────────────
+// These hit /admin/popular-routes which checks `content.popular.view` /
+// `content.popular.edit` instead of the heavyweight `settings.*` permissions.
+// Sub-admins with the popular content permissions can use these without being
+// granted full settings access.
+export const popularRoutesApi = {
+  get:    () => apiClient.get('/admin/popular-routes'),
+  update: (popularRoutes: any[]) => apiClient.put('/admin/popular-routes', { popularRoutes }),
 };
 
 // ─── CUSTOM FARES ─────────────────────────────────────────────────────────────

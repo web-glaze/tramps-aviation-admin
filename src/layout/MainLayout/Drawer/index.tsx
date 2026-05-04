@@ -3,6 +3,7 @@ import { Box, Drawer as MuiDrawer, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import DrawerHeader from './DrawerHeader';
 import DrawerContent from './DrawerContent';
+import { BRAND } from '../../../themes/palette';
 
 const DRAWER_WIDTH = 260;
 const MINI_DRAWER_WIDTH = 70;
@@ -27,14 +28,16 @@ const Drawer: FC<DrawerProps> = ({ open, handleDrawerToggle }) => {
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: open ? DRAWER_WIDTH : MINI_DRAWER_WIDTH,
-            borderRight: `1px solid ${theme.palette.divider}`,
+            // Brand-blue right border so the drawer reads as part of the brand
+            borderRight: `2px solid ${BRAND.BLUE_LIGHT}`,
             overflowX: 'hidden',
             transition: theme.transitions.create('width', {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.leavingScreen,
             }),
-            background: theme.palette.background.paper,
-            boxShadow: 'none',
+            // Soft brand-tinted background instead of plain white
+            background: `linear-gradient(180deg, #ffffff 0%, ${BRAND.BLUE_TINT}60 100%)`,
+            boxShadow: `4px 0 16px rgba(32, 154, 205, 0.06)`,
           },
         }}
       >

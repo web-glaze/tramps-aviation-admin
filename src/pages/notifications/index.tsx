@@ -6,8 +6,13 @@ import {
 import { SendOutlined, BellOutlined } from '@ant-design/icons';
 import { notificationsApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useUserContext from '../../hooks/useUser';
+import { PERMISSIONS } from '../../constants/permissions';
 
 export default function NotificationsPage() {
+  const { can } = useUserContext();
+  const canSend = can(PERMISSIONS.NOTIFICATIONS_SEND);
+
   const [form, setForm] = useState({ title: '', body: '', target: 'all', userType: 'all' });
   const [sending, setSending] = useState(false);
   const [snack, setSnack] = useState({ open: false, msg: '', sev: 'success' as any });
@@ -87,9 +92,9 @@ export default function NotificationsPage() {
                   </Button>
                   <Button
                     variant="contained" startIcon={<SendOutlined />}
-                    onClick={handleSend} disabled={sending || !form.title || !form.body}
+                    onClick={handleSend} disabled={!canSend || sending || !form.title || !form.body}
                   >
-                    {sending ? 'Sending...' : 'Send Notification'}
+                    {sending ? 'Sending...' : canSend ? 'Send Notification' : 'No Permission to Send'}
                   </Button>
                 </Box>
               </Grid>

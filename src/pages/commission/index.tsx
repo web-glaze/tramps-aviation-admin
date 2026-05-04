@@ -54,6 +54,8 @@ import {
 } from "@ant-design/icons";
 import { commissionApi, agentsApi } from "../../api";
 import MainCard from "../../components/MainCard";
+import useUserContext from "../../hooks/useUser";
+import { PERMISSIONS } from "../../constants/permissions";
 
 // ── Type definitions for form state ─────────────────────────────
 type RuleType =
@@ -237,6 +239,11 @@ function StatCard({ icon, title, value, color, sub }: any) {
 // Main component
 // ═══════════════════════════════════════════════════════════════
 export default function CommissionPage() {
+  const { can } = useUserContext();
+  const canCreate = can(PERMISSIONS.COMMISSION_CREATE);
+  const canEdit   = can(PERMISSIONS.COMMISSION_EDIT);
+  const canDelete = can(PERMISSIONS.COMMISSION_DELETE);
+
   const [rules, setRules] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [agents, setAgents] = useState<any[]>([]);
@@ -565,13 +572,15 @@ export default function CommissionPage() {
           >
             Refresh
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<PlusOutlined />}
-            onClick={openCreate}
-          >
-            Add Rule
-          </Button>
+          {canCreate && (
+            <Button
+              variant="contained"
+              startIcon={<PlusOutlined />}
+              onClick={openCreate}
+            >
+              Add Rule
+            </Button>
+          )}
         </Stack>
       </Box>
 
@@ -754,14 +763,16 @@ export default function CommissionPage() {
                         ? "No rules match your filters."
                         : "No commission rules configured yet."}
                     </Typography>
-                    <Button
-                      variant="outlined"
-                      startIcon={<PlusOutlined />}
-                      onClick={openCreate}
-                      sx={{ mt: 1.5 }}
-                    >
-                      Add First Rule
-                    </Button>
+                    {canCreate && (
+                      <Button
+                        variant="outlined"
+                        startIcon={<PlusOutlined />}
+                        onClick={openCreate}
+                        sx={{ mt: 1.5 }}
+                      >
+                        Add First Rule
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -843,7 +854,8 @@ export default function CommissionPage() {
                         <Switch
                           size="small"
                           checked={r.isActive !== false}
-                          onChange={() => handleToggle(r._id)}
+                          onChange={() => canEdit && handleToggle(r._id)}
+                          disabled={!canEdit}
                         />
                       </TableCell>
                       <TableCell align="center">
@@ -854,32 +866,41 @@ export default function CommissionPage() {
                             gap: 0.5,
                           }}
                         >
-                          <Tooltip title="Duplicate">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDuplicate(r._id)}
-                            >
-                              <CopyOutlined />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Edit">
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => openEdit(r)}
-                            >
-                              <EditOutlined />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleDelete(r._id, r.name)}
-                            >
-                              <DeleteOutlined />
-                            </IconButton>
-                          </Tooltip>
+                          {canCreate && (
+                            <Tooltip title="Duplicate">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDuplicate(r._id)}
+                              >
+                                <CopyOutlined />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {canEdit && (
+                            <Tooltip title="Edit">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => openEdit(r)}
+                              >
+                                <EditOutlined />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {canDelete && (
+                            <Tooltip title="Delete">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleDelete(r._id, r.name)}
+                              >
+                                <DeleteOutlined />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {!canCreate && !canEdit && !canDelete && (
+                            <Typography variant="caption" color="text.secondary">View only</Typography>
+                          )}
                         </Box>
                       </TableCell>
                     </TableRow>

@@ -1,8 +1,9 @@
 import {
   WalletOutlined, PercentageOutlined, BarChartOutlined,
   GiftOutlined, RollbackOutlined, BellOutlined, SettingOutlined,
-  FileTextOutlined, MailOutlined,
+  FileTextOutlined, MailOutlined, SafetyOutlined,
 } from '@ant-design/icons';
+import { PERMISSIONS } from '../constants/permissions';
 
 const FinancePages = {
   id: 'finance-group',
@@ -15,6 +16,7 @@ const FinancePages = {
       type: 'item',
       url: '/wallet',
       icon: WalletOutlined,
+      permission: PERMISSIONS.WALLETS_VIEW,
     },
     {
       id: 'commission',
@@ -22,6 +24,7 @@ const FinancePages = {
       type: 'item',
       url: '/commission',
       icon: PercentageOutlined,
+      permission: PERMISSIONS.COMMISSION_VIEW,
     },
     {
       id: 'refunds',
@@ -29,6 +32,7 @@ const FinancePages = {
       type: 'item',
       url: '/refunds',
       icon: RollbackOutlined,
+      permission: PERMISSIONS.BOOKINGS_VIEW,
     },
     {
       id: 'reports',
@@ -36,6 +40,7 @@ const FinancePages = {
       type: 'item',
       url: '/reports',
       icon: BarChartOutlined,
+      permission: PERMISSIONS.REPORTS_VIEW,
     },
   ],
 };
@@ -51,6 +56,7 @@ const MarketingPages = {
       type: 'item',
       url: '/promo',
       icon: GiftOutlined,
+      permission: PERMISSIONS.PROMOS_VIEW,
     },
     {
       id: 'notifications',
@@ -58,6 +64,7 @@ const MarketingPages = {
       type: 'item',
       url: '/notifications',
       icon: BellOutlined,
+      permission: PERMISSIONS.NOTIFICATIONS_VIEW,
     },
   ],
 };
@@ -73,6 +80,7 @@ const ContentPages = {
       type: 'item',
       url: '/reviews',
       icon: GiftOutlined,
+      permission: PERMISSIONS.CONTENT_REVIEWS_VIEW,
     },
     {
       id: 'popular-content',
@@ -80,6 +88,7 @@ const ContentPages = {
       type: 'item',
       url: '/popular-content',
       icon: GiftOutlined,
+      permission: PERMISSIONS.CONTENT_POPULAR_VIEW,
     },
     {
       id: 'tramps-fares',
@@ -87,6 +96,7 @@ const ContentPages = {
       type: 'item',
       url: '/tramps-fares',
       icon: PercentageOutlined,
+      permission: PERMISSIONS.CONTENT_FARES_VIEW,
     },
     {
       id: 'pages',
@@ -94,6 +104,7 @@ const ContentPages = {
       type: 'item',
       url: '/pages',
       icon: FileTextOutlined,
+      permission: PERMISSIONS.CONTENT_PAGES_VIEW,
     },
     {
       id: 'enquiries',
@@ -101,6 +112,7 @@ const ContentPages = {
       type: 'item',
       url: '/enquiries',
       icon: MailOutlined,
+      permission: PERMISSIONS.CONTENT_ENQUIRIES_VIEW,
     },
   ],
 };
@@ -116,6 +128,15 @@ const SettingPages = {
       type: 'item',
       url: '/settings',
       icon: SettingOutlined,
+      permission: PERMISSIONS.SETTINGS_VIEW,
+    },
+    {
+      id: 'admin-users',
+      title: 'Admin Access Control',
+      type: 'item',
+      url: '/admin-users',
+      icon: SafetyOutlined,
+      permission: PERMISSIONS.ADMIN_USERS_VIEW,
     },
   ],
 };

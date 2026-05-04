@@ -8,6 +8,8 @@ import {
 import { SearchOutlined, EyeOutlined, StopOutlined, RollbackOutlined, ReloadOutlined } from '@ant-design/icons';
 import { bookingsApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useUserContext from '../../hooks/useUser';
+import { PERMISSIONS } from '../../constants/permissions';
 
 const statusConfig: Record<string, { label: string; color: any }> = {
   confirmed: { label: 'Confirmed', color: 'success' },
@@ -18,6 +20,10 @@ const statusConfig: Record<string, { label: string; color: any }> = {
 };
 
 export default function BookingsPage() {
+  const { can } = useUserContext();
+  const canCancel = can(PERMISSIONS.BOOKINGS_CANCEL);
+  const canRefund = can(PERMISSIONS.BOOKINGS_REFUND);
+
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -143,10 +149,10 @@ export default function BookingsPage() {
                       <TableCell align="center">
                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
                           <Tooltip title="View"><IconButton size="small" color="primary" onClick={() => { setSelected(b); setViewOpen(true); }}><EyeOutlined /></IconButton></Tooltip>
-                          {b.status === 'confirmed' && (
+                          {canCancel && b.status === 'confirmed' && (
                             <Tooltip title="Cancel"><IconButton size="small" color="warning" onClick={() => handleCancel(b._id)}><StopOutlined /></IconButton></Tooltip>
                           )}
-                          {b.status === 'cancelled' && (
+                          {canRefund && b.status === 'cancelled' && (
                             <Tooltip title="Refund"><IconButton size="small" color="info" onClick={() => handleRefund(b._id)}><RollbackOutlined /></IconButton></Tooltip>
                           )}
                         </Box>
