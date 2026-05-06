@@ -164,6 +164,8 @@ export const trampsAviationFaresApi = {
   addPnrs: (id: string, pnrs: string[]) => apiClient.post(`/admin/tramps-fares/${id}/pnr-pool`, { pnrs }),
   removePnr: (id: string, pnr: string) => apiClient.delete(`/admin/tramps-fares/${id}/pnr-pool/${pnr}`),
   clearPnrPool: (id: string) => apiClient.delete(`/admin/tramps-fares/${id}/pnr-pool`),
+  // One-click demo seed — useful for fresh installs and demo accounts.
+  seedDemo: () => apiClient.post('/admin/tramps-fares/seed-demo', {}),
 };
 
 

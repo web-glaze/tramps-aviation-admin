@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Box, Typography, Grid, TextField, Button, Switch, FormControlLabel,
-  Alert, Snackbar, Divider, Card, InputAdornment,
+  Alert, Snackbar, Divider, Card, InputAdornment, Stack,
 } from '@mui/material';
 import { SaveOutlined, SwapOutlined } from '@ant-design/icons';
 import { settingsApi } from '../../api';
@@ -57,6 +57,18 @@ const defaultSettings = {
   // that product.
   markupEnabledProducts:     ['flight', 'hotel', 'series'] as FeatureProduct[],
   commissionEnabledProducts: ['flight', 'hotel', 'series'] as FeatureProduct[],
+  // Bank accounts shown on B2B "Make Payment → Bank Transfer" tab. Admin
+  // adds entries via the new "Bank Accounts" card on this page; B2B reads
+  // them via /admin/public-settings.
+  bankAccounts: [] as Array<{
+    accountName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    bankName?: string;
+    branch?: string;
+    upiId?: string;
+    isActive?: boolean;
+  }>,
 };
 
 const defaultPricing = {
@@ -501,6 +513,137 @@ export default function SettingsPage() {
                 back ON restores it without manual re-entry.
               </Typography>
             </Card>
+          </MainCard>
+
+          {/* ── Bank Accounts (admin-managed) ────────────────────────────────
+              Pre-fix: bank account / IFSC / UPI ID were hardcoded in the B2B
+              source code (`1234567890` / `HDFC0001234` / `tramps@hdfcbank`).
+              Now they're admin-managed here and exposed via /admin/public-settings
+              so the B2B "Make Payment → Bank Transfer" tab + the Account →
+              Bank Accounts page render the live list. */}
+          <MainCard title="🏦 Bank Accounts (Wallet Top-up)" sx={{ mt: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              These accounts appear on the agent's "Make Payment → Bank Transfer"
+              tab. Toggle "Active" to hide an account without deleting it.
+            </Typography>
+            <Stack spacing={2}>
+              {(settings.bankAccounts || []).map((acc: any, idx: number) => (
+                <Card key={idx} variant="outlined" sx={{ p: 2 }}>
+                  <Grid container spacing={1.5} alignItems="center">
+                    <Grid item xs={12} sm={6} md={4}>
+                      <TextField
+                        size="small" fullWidth label="Account Name"
+                        value={acc.accountName || ''}
+                        disabled={!canEdit}
+                        onChange={(e) => set('bankAccounts',
+                          settings.bankAccounts.map((a: any, i: number) =>
+                            i === idx ? { ...a, accountName: e.target.value } : a))}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <TextField
+                        size="small" fullWidth label="Account Number"
+                        value={acc.accountNumber || ''}
+                        disabled={!canEdit}
+                        onChange={(e) => set('bankAccounts',
+                          settings.bankAccounts.map((a: any, i: number) =>
+                            i === idx ? { ...a, accountNumber: e.target.value } : a))}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <TextField
+                        size="small" fullWidth label="IFSC Code"
+                        value={acc.ifscCode || ''}
+                        disabled={!canEdit}
+                        onChange={(e) => set('bankAccounts',
+                          settings.bankAccounts.map((a: any, i: number) =>
+                            i === idx ? { ...a, ifscCode: e.target.value.toUpperCase() } : a))}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <TextField
+                        size="small" fullWidth label="Bank Name"
+                        value={acc.bankName || ''}
+                        disabled={!canEdit}
+                        onChange={(e) => set('bankAccounts',
+                          settings.bankAccounts.map((a: any, i: number) =>
+                            i === idx ? { ...a, bankName: e.target.value } : a))}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <TextField
+                        size="small" fullWidth label="Branch (optional)"
+                        value={acc.branch || ''}
+                        disabled={!canEdit}
+                        onChange={(e) => set('bankAccounts',
+                          settings.bankAccounts.map((a: any, i: number) =>
+                            i === idx ? { ...a, branch: e.target.value } : a))}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <TextField
+                        size="small" fullWidth label="UPI ID (optional)"
+                        value={acc.upiId || ''}
+                        disabled={!canEdit}
+                        onChange={(e) => set('bankAccounts',
+                          settings.bankAccounts.map((a: any, i: number) =>
+                            i === idx ? { ...a, upiId: e.target.value } : a))}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={acc.isActive !== false}
+                            disabled={!canEdit}
+                            onChange={(e) => set('bankAccounts',
+                              settings.bankAccounts.map((a: any, i: number) =>
+                                i === idx ? { ...a, isActive: e.target.checked } : a))}
+                          />
+                        }
+                        label="Active"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={8} sx={{ textAlign: 'right' }}>
+                      <Button
+                        size="small" color="error" disabled={!canEdit}
+                        onClick={() => set('bankAccounts',
+                          settings.bankAccounts.filter((_: any, i: number) => i !== idx))}
+                      >
+                        Remove
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Card>
+              ))}
+              <Button
+                variant="outlined"
+                disabled={!canEdit}
+                onClick={() => set('bankAccounts', [
+                  ...(settings.bankAccounts || []),
+                  { accountName: '', accountNumber: '', ifscCode: '', bankName: '', branch: '', upiId: '', isActive: true },
+                ])}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                + Add Bank Account
+              </Button>
+              <Box sx={{ pt: 1 }}>
+                <Button
+                  variant="contained" color="primary" startIcon={<SaveOutlined />}
+                  disabled={!canEdit}
+                  onClick={async () => {
+                    try {
+                      await settingsApi.update({ bankAccounts: settings.bankAccounts || [] });
+                      setSnack({ open: true, msg: '✅ Bank accounts saved', sev: 'success' });
+                    } catch {
+                      setSnack({ open: true, msg: '❌ Failed to save bank accounts', sev: 'error' });
+                    }
+                  }}
+                >
+                  Save Bank Accounts
+                </Button>
+              </Box>
+            </Stack>
           </MainCard>
 
         </Grid>

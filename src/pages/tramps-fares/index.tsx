@@ -903,6 +903,34 @@ export default function TrampsTicketsPage() {
                 Add {type}
               </Button>
             )}
+            {canEdit && type === 'flight' && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={async () => {
+                  if (!window.confirm('Seed a small set of demo flight fares? Existing entries are skipped.')) return;
+                  try {
+                    const res = await trampsAviationFaresApi.seedDemo();
+                    const d: any = (res as any).data?.data || (res as any).data;
+                    setSnack({
+                      open: true,
+                      sev: 'success',
+                      msg: d?.message || 'Demo fares seeded',
+                    });
+                    load();
+                    loadStats();
+                  } catch {
+                    setSnack({
+                      open: true,
+                      sev: 'error',
+                      msg: 'Failed to seed demo fares',
+                    });
+                  }
+                }}
+              >
+                Seed Demo Fares
+              </Button>
+            )}
           </Stack>
         </Box>
 

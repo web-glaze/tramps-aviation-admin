@@ -130,6 +130,14 @@ export default function AdminUsersPage() {
   };
 
   const removeUser = async (user: AdminUser) => {
+    // Pre-fix: a single click on the trash icon irreversibly deleted the
+    // sub-admin with no confirmation. Adding a hard confirm so accidental
+    // clicks (especially from a touch device) don't wipe out a teammate's
+    // account.
+    const ok = window.confirm(
+      `Permanently remove ${user.name || user.email}?\n\nThis cannot be undone.`,
+    );
+    if (!ok) return;
     await adminUsersApi.remove(user.id);
     await load();
   };

@@ -49,7 +49,17 @@ export default function BookingsPage() {
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
+  // Pre-fix: cancel and refund were one-click, no confirm. A misclick on
+  // the wrong row triggered a real cancellation against TBO and refunded
+  // money to the agent's wallet. Both are irreversible from the admin
+  // panel — confirm first, and ask for a reason for refunds so we have an
+  // audit trail.
   const handleCancel = async (id: string) => {
+    if (!window.confirm(
+      'Cancel this booking? This will release inventory at the supplier and notify the customer/agent.',
+    )) {
+      return;
+    }
     try {
       await bookingsApi.cancel(id, 'Admin cancelled');
       setSnack({ open: true, msg: 'Booking cancelled', sev: 'warning' });
@@ -58,8 +68,18 @@ export default function BookingsPage() {
   };
 
   const handleRefund = async (id: string) => {
+    const reason = window.prompt(
+      'Refund this booking? Enter a short reason (will be saved to the audit log):',
+      'Admin initiated refund',
+    );
+    if (reason === null) return; // user cancelled
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      setSnack({ open: true, msg: 'Refund reason is required', sev: 'error' });
+      return;
+    }
     try {
-      await bookingsApi.refund(id, { reason: 'Admin initiated refund' });
+      await bookingsApi.refund(id, { reason: trimmed });
       setSnack({ open: true, msg: 'Refund initiated', sev: 'success' });
       fetchBookings();
     } catch { setSnack({ open: true, msg: 'Failed to initiate refund', sev: 'error' }); }

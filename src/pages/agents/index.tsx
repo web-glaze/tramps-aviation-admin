@@ -63,6 +63,20 @@ export default function AgentsPage() {
   };
 
   const handleSuspend = async (id: string) => {
+    // Pre-fix: a single click on the suspend icon would suspend the agent
+    // immediately with no confirmation — the agent would lose access to
+    // their dashboard, wallet, and live bookings. Confirm first.
+    const agent = agents.find((x) => x._id === id);
+    const label =
+      (agent && (agent.agencyName || agent.contactPerson || agent.email)) ||
+      'this agent';
+    if (
+      !window.confirm(
+        `Suspend ${label}? They will be locked out of the portal until reactivated.`,
+      )
+    ) {
+      return;
+    }
     try { await agentsApi.suspend(id); showSnack('Agent suspended', 'warning'); fetchAgents(); }
     catch { showSnack('Failed to suspend agent', 'error'); }
   };
