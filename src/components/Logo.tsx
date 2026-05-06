@@ -1,7 +1,6 @@
 import { FC } from "react";
 import { Box, Typography } from "@mui/material";
-// CRA `import file.svg` returns the public URL string — works as <img src>.
-import logoSvg from "../logo.svg";
+// Note: logo.svg is served from the public folder via /logo.svg below.
 import { BRAND } from "../themes/palette";
 
 // ─────────────────────────────────────────────────────────────────────────────

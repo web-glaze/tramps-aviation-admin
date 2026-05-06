@@ -530,7 +530,7 @@ export default function SettingsPage() {
               {(settings.bankAccounts || []).map((acc: any, idx: number) => (
                 <Card key={idx} variant="outlined" sx={{ p: 2 }}>
                   <Grid container spacing={1.5} alignItems="center">
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid size={{xs:12, md:4, sm:6}}>
                       <TextField
                         size="small" fullWidth label="Account Name"
                         value={acc.accountName || ''}
@@ -540,7 +540,7 @@ export default function SettingsPage() {
                             i === idx ? { ...a, accountName: e.target.value } : a))}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid size={{xs:12, md:4, sm:6}}>
                       <TextField
                         size="small" fullWidth label="Account Number"
                         value={acc.accountNumber || ''}
@@ -550,7 +550,7 @@ export default function SettingsPage() {
                             i === idx ? { ...a, accountNumber: e.target.value } : a))}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid size={{xs:12, md:4, sm:6}}>
                       <TextField
                         size="small" fullWidth label="IFSC Code"
                         value={acc.ifscCode || ''}
@@ -560,7 +560,7 @@ export default function SettingsPage() {
                             i === idx ? { ...a, ifscCode: e.target.value.toUpperCase() } : a))}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid size={{xs:12, md:4, sm:6}}>
                       <TextField
                         size="small" fullWidth label="Bank Name"
                         value={acc.bankName || ''}
@@ -570,7 +570,7 @@ export default function SettingsPage() {
                             i === idx ? { ...a, bankName: e.target.value } : a))}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid size={{xs:12, md:4, sm:6}}>
                       <TextField
                         size="small" fullWidth label="Branch (optional)"
                         value={acc.branch || ''}
@@ -580,7 +580,7 @@ export default function SettingsPage() {
                             i === idx ? { ...a, branch: e.target.value } : a))}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid size={{xs:12, md:4, sm:6}}>
                       <TextField
                         size="small" fullWidth label="UPI ID (optional)"
                         value={acc.upiId || ''}
@@ -590,7 +590,7 @@ export default function SettingsPage() {
                             i === idx ? { ...a, upiId: e.target.value } : a))}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid size={{xs:12, md:4, sm:6}}>
                       <FormControlLabel
                         control={
                           <Switch
@@ -604,7 +604,7 @@ export default function SettingsPage() {
                         label="Active"
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={8} sx={{ textAlign: 'right' }}>
+                    <Grid size={{xs:12, md:4, sm:6}} sx={{ textAlign: 'right' }}>
                       <Button
                         size="small" color="error" disabled={!canEdit}
                         onClick={() => set('bankAccounts',
