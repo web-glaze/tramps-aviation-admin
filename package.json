@@ -27,7 +27,8 @@
     "simplebar": "^6.3.3",
     "simplebar-react": "^3.3.2",
     "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",

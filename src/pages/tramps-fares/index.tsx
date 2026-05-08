@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   Box,
   Typography,
@@ -372,8 +373,48 @@ function parseBulk(text: string, type: string) {
           baseFareRaw,
           taxRaw,
           viaAirport,
+          pnrsRaw,
+          segmentsRaw,
         ] = p;
         const [dep, arr] = (timing || "").split("-");
+
+        // ── Parse PNRs (optional column 17). Comma-separated. If empty,
+        //    backend will auto-seed placeholder PNRs.
+        const pnrPool = (pnrsRaw || "")
+          .split(",")
+          .map((s: string) => s.trim().toUpperCase())
+          .filter((s: string) => /^[A-Z0-9]{4,12}$/.test(s));
+
+        // ── Parse Segments (optional column 18). Multi-stop format:
+        //    "FLT,ORIG,DEST,DEP,ARR;FLT,ORIG,DEST,DEP,ARR"
+        //    Segments are separated by ";", fields within a segment by ",".
+        const segments = (segmentsRaw || "")
+          .split(";")
+          .map((seg: string) => seg.trim())
+          .filter(Boolean)
+          .map((seg: string) => {
+            const [sFlNo, sOrig, sDest, sDep, sArr, sBag] = seg
+              .split(",")
+              .map((s: string) => s.trim());
+            return {
+              flightNumber: sFlNo || "",
+              airline: airline || "",
+              origin: (sOrig || "").toUpperCase().slice(0, 3),
+              destination: (sDest || "").toUpperCase().slice(0, 3),
+              departureTime: sDep || "",
+              arrivalTime: sArr || "",
+              travelDate: date,
+              baggage: sBag || bag || "30KG",
+              cabinClass: "ECONOMY",
+            };
+          });
+
+        const stopsNum = parseInt(stops || "0") || 0;
+        if (segments.length > 1 && stopsNum === 0) {
+          // user provided segments but stops=0 → auto-correct
+          // (segments.length - 1) gives stop count
+        }
+
         records.push({
           type: "flight",
           flightNumber: flNo,
@@ -394,7 +435,10 @@ function parseBulk(text: string, type: string) {
           returnDate: retDate || "",
           returnTiming: retTiming || "",
           seatsAvailable: parseInt(seats || "9") || 9,
-          stops: parseInt(stops || "0") || 0,
+          stops:
+            segments.length > 1
+              ? Math.max(stopsNum, segments.length - 1)
+              : stopsNum,
           viaAirport: (viaAirport || "").toUpperCase().slice(0, 3),
           cabinClass: "ECONOMY",
           mode: "both",
@@ -402,7 +446,8 @@ function parseBulk(text: string, type: string) {
           isNonRefundable: true,
           isNonChangeable: true,
           notes: "",
-          segments: [],
+          segments,
+          pnrPool,
         });
       } else if (type === "hotel") {
         if (p.length < 4) throw new Error("Need 4+ fields");
@@ -457,14 +502,164 @@ function parseBulk(text: string, type: string) {
   return { records, errors };
 }
 
+// ─── Excel / CSV column maps ──────────────────────────────────────────────
+//   Column order MUST match the parser order. Keep in sync.
+const BULK_COLUMNS: Record<string, string[]> = {
+  flight: [
+    "FlightNo",
+    "Origin",
+    "Dest",
+    "Date",
+    "Timing",
+    "TotalFare",
+    "Baggage",
+    "Airline",
+    "TripType",
+    "ReturnDate",
+    "ReturnTiming",
+    "Seats",
+    "Stops",
+    "BaseFare",
+    "TaxAmount",
+    "ViaAirport",
+    "PNRs",
+    "Segments",
+  ],
+  hotel: [
+    "HotelName",
+    "City",
+    "Stars",
+    "PricePerNight",
+    "MealPlan",
+    "Cancellation",
+    "Amenities",
+  ],
+  insurance: [
+    "PlanName",
+    "TripType",
+    "Premium",
+    "MedicalCover",
+    "CancellationCover",
+    "BaggageCover",
+    "Benefits",
+  ],
+};
+
+const BULK_SAMPLE_ROWS: Record<string, string[][]> = {
+  flight: [
+    [
+      "IX-191",
+      "ATQ",
+      "DXB",
+      "2026-04-21",
+      "00:15-02:55",
+      "28700",
+      "30KG",
+      "Air India Express",
+      "OneWay",
+      "",
+      "",
+      "9",
+      "0",
+      "24000",
+      "4700",
+      "",
+      "",
+      "",
+    ],
+    [
+      "6E-211",
+      "DEL",
+      "BOM",
+      "2026-05-10",
+      "09:30-11:45",
+      "2000",
+      "15KG",
+      "IndiGo",
+      "OneWay",
+      "",
+      "",
+      "9",
+      "0",
+      "1700",
+      "300",
+      "",
+      "ABC123,DEF456,GHI789",
+      "",
+    ],
+    [
+      "AI-865",
+      "DEL",
+      "LHR",
+      "2026-06-15",
+      "02:00-08:30",
+      "65000",
+      "25KG",
+      "Air India",
+      "OneWay",
+      "",
+      "",
+      "8",
+      "2",
+      "55000",
+      "10000",
+      "DXB",
+      "PNR0001,PNR0002",
+      "AI-865,DEL,DXB,02:00,04:00;AI-865,DXB,IST,05:00,07:00;AI-865,IST,LHR,07:30,08:30",
+    ],
+  ],
+  hotel: [
+    [
+      "Taj Mahal Palace",
+      "Mumbai",
+      "5",
+      "12000",
+      "BREAKFAST_INCLUDED",
+      "FREE_CANCELLATION",
+      "WiFi,Pool,Spa",
+    ],
+  ],
+  insurance: [
+    [
+      "Basic Cover",
+      "domestic",
+      "199",
+      "200000",
+      "10000",
+      "5000",
+      "Medical Emergency,Trip Cancellation",
+    ],
+  ],
+};
+
+// Convert a 2D array (rows of cells) into pipe-separated text
+function rowsToPipeText(rows: string[][], headerRow: boolean): string {
+  const data = headerRow ? rows.slice(1) : rows;
+  return data
+    .filter((r) => r && r.some((c) => String(c ?? "").trim() !== ""))
+    .map((r) => r.map((c) => String(c ?? "").trim()).join(" | "))
+    .join("\n");
+}
+
+// Detect if first row looks like a header (has known column names)
+function looksLikeHeader(row: string[], type: string): boolean {
+  if (!row?.length) return false;
+  const cols = (BULK_COLUMNS[type] || []).map((c) => c.toLowerCase());
+  const matches = row.filter((c) =>
+    cols.includes(String(c ?? "").trim().toLowerCase()),
+  ).length;
+  return matches >= 2; // at least 2 known headers
+}
+
 const BULK_HINTS = {
   flight: {
     format:
-      "FlightNo | Origin | Dest | Date(YYYY-MM-DD) | Timing(HH:MM-HH:MM) | TotalFare | Baggage | Airline | TripType | ReturnDate | ReturnTiming | Seats | Stops | BaseFare | TaxAmount | ViaAirport",
+      "FlightNo | Origin | Dest | Date(YYYY-MM-DD) | Timing(HH:MM-HH:MM) | TotalFare | Baggage | Airline | TripType | ReturnDate | ReturnTiming | Seats | Stops | BaseFare | TaxAmount | ViaAirport | PNRs(comma) | Segments(FLT,ORIG,DEST,DEP,ARR;…)",
     examples: [
-      "IX-191 | ATQ | DXB | 2026-04-21 | 00:15-02:55 | 28700 | 30KG | Air India Express | OneWay | | | 9 | 0 | 24000 | 4700",
-      "6E-211 | DEL | BOM | 2026-05-10 | 09:30-11:45 | 2000 | 15KG | IndiGo | OneWay | | | 9 | 0 | 1700 | 300",
-      "IX-137 | ATQ | DXB | 2026-05-01 | 13:30-16:05 | 30000 | 30KG | Air India Express | OneWay | | | 12 | 1 | 25000 | 5000 | SHJ",
+      "IX-191 | ATQ | DXB | 2026-04-21 | 00:15-02:55 | 28700 | 30KG | Air India Express | OneWay | | | 9 | 0 | 24000 | 4700 | | | ",
+      "6E-211 | DEL | BOM | 2026-05-10 | 09:30-11:45 | 2000 | 15KG | IndiGo | OneWay | | | 9 | 0 | 1700 | 300 | | ABC123,DEF456,GHI789 | ",
+      "IX-137 | ATQ | DXB | 2026-05-01 | 13:30-16:05 | 30000 | 30KG | Air India Express | OneWay | | | 12 | 1 | 25000 | 5000 | SHJ | | IX-137,ATQ,SHJ,13:30,15:00;IX-137,SHJ,DXB,15:30,16:05",
+      "AI-865 | DEL | LHR | 2026-06-15 | 02:00-08:30 | 65000 | 25KG | Air India | OneWay | | | 8 | 2 | 55000 | 10000 | DXB | PNR0001,PNR0002 | AI-865,DEL,DXB,02:00,04:00;AI-865,DXB,IST,05:00,07:00;AI-865,IST,LHR,07:30,08:30",
     ],
   },
   hotel: {
@@ -792,6 +987,62 @@ export default function TrampsTicketsPage() {
     setBulkPreview(r);
     setBulkErrors(e);
   };
+
+  // ── Excel / CSV upload — auto-populates the textarea in pipe format ──
+  const bulkFileRef = useRef<HTMLInputElement>(null);
+  const handleBulkFile = async (file: File) => {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: false });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      if (!sheet) {
+        toast("No sheet found in file", "error");
+        return;
+      }
+      const rows: string[][] = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        raw: false,
+        defval: "",
+        blankrows: false,
+      }) as any;
+      if (!rows.length) {
+        toast("File is empty", "warning");
+        return;
+      }
+      const hasHeader = looksLikeHeader(rows[0], type);
+      const text = rowsToPipeText(rows, hasHeader);
+      handleBulkParse(text);
+      toast(
+        `Loaded ${rows.length - (hasHeader ? 1 : 0)} rows from ${file.name}`,
+        "success",
+      );
+    } catch (err: any) {
+      toast(`Failed to read file: ${err.message || err}`, "error");
+    } finally {
+      if (bulkFileRef.current) bulkFileRef.current.value = "";
+    }
+  };
+
+  // ── Download a pre-formatted Excel template with headers + sample rows ──
+  const handleDownloadTemplate = () => {
+    try {
+      const headers = BULK_COLUMNS[type] || [];
+      const samples = BULK_SAMPLE_ROWS[type] || [];
+      const sheetData = [headers, ...samples];
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+      // Set column widths for readability
+      ws["!cols"] = headers.map((h) => ({
+        wch: Math.max(12, h.length + 2),
+      }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Tickets");
+      XLSX.writeFile(wb, `tramps-${type}-template.xlsx`);
+      toast(`Template downloaded — fill rows below the header & re-upload`);
+    } catch (err: any) {
+      toast(`Template export failed: ${err.message || err}`, "error");
+    }
+  };
+
   const handleBulkSave = async () => {
     if (!bulkPreview.length) return;
     setBulkSaving(true);
@@ -901,34 +1152,6 @@ export default function TrampsTicketsPage() {
                 onClick={openAdd}
               >
                 Add {type}
-              </Button>
-            )}
-            {canEdit && type === 'flight' && (
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={async () => {
-                  if (!window.confirm('Seed a small set of demo flight fares? Existing entries are skipped.')) return;
-                  try {
-                    const res = await trampsAviationFaresApi.seedDemo();
-                    const d: any = (res as any).data?.data || (res as any).data;
-                    setSnack({
-                      open: true,
-                      sev: 'success',
-                      msg: d?.message || 'Demo fares seeded',
-                    });
-                    load();
-                    loadStats();
-                  } catch {
-                    setSnack({
-                      open: true,
-                      sev: 'error',
-                      msg: 'Failed to seed demo fares',
-                    });
-                  }
-                }}
-              >
-                Seed Demo Fares
               </Button>
             )}
           </Stack>
@@ -2218,9 +2441,10 @@ export default function TrampsTicketsPage() {
                 fontWeight={600}
                 display="block"
               >
-                💡 Multi-stop flights: set Stops + ViaAirport in the import.
-                After import, open Edit on the ticket to add full segment
-                details via "Add Segment".
+                🛬 Multi-stop flights: fill the <b>Segments</b> column with each
+                leg in order — format{" "}
+                <code>FLT,ORIG,DEST,DEP,ARR;FLT,ORIG,DEST,DEP,ARR</code>. Stops
+                count is auto-calculated from segments.
               </Typography>
               <Typography
                 variant="caption"
@@ -2229,13 +2453,68 @@ export default function TrampsTicketsPage() {
                 display="block"
                 sx={{ mt: 0.5 }}
               >
-                🎟️ Placeholder PNRs are auto-seeded for every imported ticket
-                (one per available seat, format <code>TR&lt;hash&gt;001</code>),
-                so agents can book immediately. Replace them with real airline
-                PNRs later via the 🎟️ icon on each row.
+                🎟️ <b>PNRs</b> column (optional) — paste real airline PNRs
+                comma-separated (e.g. <code>ABC123,DEF456</code>). Leave blank
+                to auto-seed placeholders. PNRs must be 4–12 chars (A–Z, 0–9).
+              </Typography>
+              <Typography
+                variant="caption"
+                color="info.dark"
+                fontWeight={600}
+                display="block"
+                sx={{ mt: 0.5 }}
+              >
+                📊 Prefer Excel? Click <b>Download Template</b>, fill the rows,
+                then <b>Upload Excel/CSV</b> — the textarea auto-fills in the
+                correct format.
               </Typography>
             </Box>
           )}
+
+          {/* ── Excel / CSV import & template buttons ───────────────────── */}
+          <Box
+            sx={{
+              px: 2,
+              py: 1.5,
+              display: "flex",
+              gap: 1,
+              flexWrap: "wrap",
+              alignItems: "center",
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+            }}
+          >
+            <input
+              ref={bulkFileRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleBulkFile(f);
+              }}
+            />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<ImportOutlined />}
+              onClick={() => bulkFileRef.current?.click()}
+            >
+              Upload Excel / CSV
+            </Button>
+            <Button
+              variant="text"
+              size="small"
+              onClick={handleDownloadTemplate}
+            >
+              📥 Download Template
+            </Button>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              .xlsx, .xls, .csv supported · headers auto-detected
+            </Typography>
+          </Box>
+
           <Box
             sx={{
               p: 2,
@@ -2486,10 +2765,11 @@ export default function TrampsTicketsPage() {
               How PNR Pool works:
             </Typography>
             <Typography variant="caption" display="block">
-              Admin pehle se airline PNRs yahan daal ke rakhta hai. Jab agent
-              book karta hai, system automatically pool se ek PNR assign kar
-              deta hai — agent ko kuch type nahi karna padta. Pool empty hone pe
-              booking block ho jati hai.
+              The admin pre-loads airline PNRs into this pool in advance. When
+              an agent makes a booking, the system automatically assigns one
+              PNR from the pool — the agent doesn&apos;t need to type anything.
+              Once the pool is empty, new bookings are blocked until more PNRs
+              are added.
             </Typography>
           </Alert>
 
