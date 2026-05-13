@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "https://tramps-aviation-backend.onrender.com";
+  process.env.REACT_APP_API_URL || "https://tramps-aviation-backend.onrender.com/api";
 
 // Base URL without /api — used for media/file URLs returned by the server
 export const MEDIA_BASE_URL = API_BASE_URL.replace(/\/api$/, "");
