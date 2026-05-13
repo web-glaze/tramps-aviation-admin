@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "http://localhost:8080/api";
+  process.env.REACT_APP_API_URL || "http://13.207.25.212:8080/api";
 
 // Base URL without /api — used for media/file URLs returned by the server
 export const MEDIA_BASE_URL = API_BASE_URL.replace(/\/api$/, "");
