@@ -782,88 +782,95 @@ export default function KycPage() {
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
 
-                {/* Check if any docs exist */}
-                {!selected.panDocument &&
-                !selected.aadharFront &&
-                !selected.aadharBack &&
-                !selected.gstDocument &&
-                !selected.businessProof &&
-                !selected.cancelledCheque &&
-                (!selected.documents || selected.documents.length === 0) ? (
-                  <Box
-                    sx={{ textAlign: "center", py: 6, color: "text.secondary" }}
-                  >
-                    <FileImageOutlined style={{ fontSize: 48, opacity: 0.3 }} />
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      No documents uploaded yet
-                    </Typography>
-                    <Typography variant="caption">
-                      Agent has not uploaded any files
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Grid container spacing={2}>
-                    {selected.panDocument && (
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <DocViewer
-                          label="PAN Card"
-                          url={selected.panDocument}
-                        />
-                      </Grid>
-                    )}
-                    {selected.aadharFront && (
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <DocViewer
-                          label="Aadhaar Front"
-                          url={selected.aadharFront}
-                        />
-                      </Grid>
-                    )}
-                    {selected.aadharBack && (
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <DocViewer
-                          label="Aadhaar Back"
-                          url={selected.aadharBack}
-                        />
-                      </Grid>
-                    )}
-                    {selected.gstDocument && (
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <DocViewer
-                          label="GST Certificate"
-                          url={selected.gstDocument}
-                        />
-                      </Grid>
-                    )}
-                    {selected.businessProof && (
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <DocViewer
-                          label="Business Proof"
-                          url={selected.businessProof}
-                        />
-                      </Grid>
-                    )}
-                    {selected.cancelledCheque && (
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <DocViewer
-                          label="Cancelled Cheque"
-                          url={selected.cancelledCheque}
-                        />
-                      </Grid>
-                    )}
-                    {/* Legacy documents array */}
-                    {selected.documents
-                      ?.filter((d: any) => d)
-                      .map((doc: any, i: number) => (
-                        <Grid size={{ xs: 12, sm: 6 }} key={i}>
-                          <DocViewer
-                            label={`Document ${i + 1}`}
-                            url={doc.url || doc}
-                          />
+                {/*
+                  Pre-fix: this block only checked the legacy flat fields
+                  (panDocument, aadharFront, gstDocument, ...) and showed
+                  "No documents uploaded yet" whenever the backend instead
+                  returned the documents in the new shape — either
+                  `kyc.uploadedDocuments[]` (with fresh presigned URLs) or
+                  `kyc.agentId.kycDocuments[]` (raw S3 keys/URLs). S3 had
+                  the files and the API was returning them, but the modal
+                  rendered empty.
+                  Now we collect from both shapes and render whatever exists.
+                */}
+                {(() => {
+                  // 1. New array (preferred): hydrated with presigned URLs
+                  const arrayDocs: any[] =
+                    (Array.isArray(selected.uploadedDocuments) && selected.uploadedDocuments.length
+                      ? selected.uploadedDocuments
+                      : Array.isArray(selected.agentId?.kycDocuments)
+                        ? selected.agentId.kycDocuments
+                        : []) || [];
+
+                  // 2. Map array docs → { label, url }
+                  const labelFor = (type: string) => ({
+                    pan: "PAN Card",
+                    aadhaar: "Aadhaar",
+                    gst: "GST Certificate",
+                    trade_license: "Trade License",
+                    bank_statement: "Bank Statement",
+                  } as Record<string, string>)[type] || type;
+
+                  const fromArray = arrayDocs
+                    .filter((d) => d && (d.url || d.s3Url))
+                    .map((d) => ({
+                      label: labelFor(d.type),
+                      url: d.url || d.s3Url,
+                      status: d.status,
+                    }));
+
+                  // 3. Legacy flat fields (still supported for old records)
+                  const fromLegacy = [
+                    selected.panDocument && { label: "PAN Card", url: selected.panDocument },
+                    selected.aadharFront && { label: "Aadhaar Front", url: selected.aadharFront },
+                    selected.aadharBack && { label: "Aadhaar Back", url: selected.aadharBack },
+                    selected.gstDocument && { label: "GST Certificate", url: selected.gstDocument },
+                    selected.businessProof && { label: "Business Proof", url: selected.businessProof },
+                    selected.cancelledCheque && { label: "Cancelled Cheque", url: selected.cancelledCheque },
+                  ].filter(Boolean) as Array<{ label: string; url: string }>;
+
+                  // 4. Legacy `documents` array (older flat list)
+                  const fromLegacyArray = (selected.documents || [])
+                    .filter((d: any) => d)
+                    .map((doc: any, i: number) => ({
+                      label: `Document ${i + 1}`,
+                      url: doc.url || doc,
+                    }));
+
+                  // Combine all (new array first, then legacy, deduplicated by url)
+                  const seen = new Set<string>();
+                  const allDocs = [...fromArray, ...fromLegacy, ...fromLegacyArray].filter((d) => {
+                    if (!d.url || seen.has(d.url)) return false;
+                    seen.add(d.url);
+                    return true;
+                  });
+
+                  if (allDocs.length === 0) {
+                    return (
+                      <Box
+                        sx={{ textAlign: "center", py: 6, color: "text.secondary" }}
+                      >
+                        <FileImageOutlined style={{ fontSize: 48, opacity: 0.3 }} />
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                          No documents uploaded yet
+                        </Typography>
+                        <Typography variant="caption">
+                          Agent has not uploaded any files
+                        </Typography>
+                      </Box>
+                    );
+                  }
+
+                  return (
+                    <Grid container spacing={2}>
+                      {allDocs.map((doc, idx) => (
+                        <Grid size={{ xs: 12, sm: 6 }} key={`${doc.url}-${idx}`}>
+                          <DocViewer label={doc.label} url={doc.url} />
                         </Grid>
                       ))}
-                  </Grid>
-                )}
+                    </Grid>
+                  );
+                })()}
 
                 {/* Bottom action bar — also shown at bottom of docs for easy access */}
                 {needsReview(selected) && (
