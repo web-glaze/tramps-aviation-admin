@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Chip, Button, IconButton, TextField, InputAdornment,
@@ -8,8 +9,13 @@ import {
 import { SearchOutlined, EyeOutlined, StopOutlined, RollbackOutlined, ReloadOutlined } from '@ant-design/icons';
 import { bookingsApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import DateRangeFilter, { defaultLast30, DateRangeValue } from '../../components/DateRangeFilter';
 import useUserContext from '../../hooks/useUser';
 import { PERMISSIONS } from '../../constants/permissions';
+
+// Type filter values that the bookings page understands. Used to validate
+// the `?type=` query param so we don't accept arbitrary values from the URL.
+const ALLOWED_TYPE_FILTERS = ['flight', 'hotel', 'insurance', 'series', 'refund'];
 
 const statusConfig: Record<string, { label: string; color: any }> = {
   confirmed: { label: 'Confirmed', color: 'success' },
@@ -24,11 +30,22 @@ export default function BookingsPage() {
   const canCancel = can(PERMISSIONS.BOOKINGS_CANCEL);
   const canRefund = can(PERMISSIONS.BOOKINGS_REFUND);
 
+  const [searchParams] = useSearchParams();
+
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  // Pre-fill the type filter from `?type=...` (e.g. the sidebar's
+  // "Series Bookings" entry deep-links to `/bookings?type=series`). We
+  // initialize from the query param so the very first fetch is already
+  // scoped — avoiding a flash of "all bookings" before the filter applies.
+  const initialType = (() => {
+    const q = searchParams.get('type') || '';
+    return ALLOWED_TYPE_FILTERS.includes(q) ? q : '';
+  })();
+  const [typeFilter, setTypeFilter] = useState(initialType);
+  const [dateRange, setDateRange] = useState<DateRangeValue>(defaultLast30());
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<any>(null);
@@ -38,16 +55,39 @@ export default function BookingsPage() {
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await bookingsApi.getAll({ page, limit: 10, search, status: statusFilter, type: typeFilter });
+      // "Series" is a UI-only filter — map it to the backend's productType
+      // query param (or tokenPrefix as a fallback). All other types map 1:1
+      // to the existing `type` query param.
+      const params: any = { page, limit: 10, search, status: statusFilter };
+      if (typeFilter === 'series') {
+        params.productType = 'series';
+        params.tokenPrefix = 'TRAMPS-';
+      } else if (typeFilter) {
+        params.type = typeFilter;
+      }
+      if (dateRange.from) params.fromDate = dateRange.from;
+      if (dateRange.to)   params.toDate   = dateRange.to;
+      const res = await bookingsApi.getAll(params);
       const raw = res.data?.data ?? res.data;
       const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
       setBookings(arr);
       setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setBookings([]); }
     finally { setLoading(false); }
-  }, [page, statusFilter, typeFilter, search]);
+  }, [page, statusFilter, typeFilter, search, dateRange]);
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
+
+  // React to ?type= changes that happen after mount — e.g. when the user
+  // clicks the "Series Bookings" sidebar entry while already on /bookings.
+  // Without this, the URL would update but the filter dropdown wouldn't.
+  useEffect(() => {
+    const q = searchParams.get('type') || '';
+    const next = ALLOWED_TYPE_FILTERS.includes(q) ? q : '';
+    setTypeFilter(prev => (prev === next ? prev : next));
+    setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Pre-fix: cancel and refund were one-click, no confirm. A misclick on
   // the wrong row triggered a real cancellation against TBO and refunded
@@ -119,9 +159,20 @@ export default function BookingsPage() {
               <MenuItem value="flight">Flight</MenuItem>
               <MenuItem value="hotel">Hotel</MenuItem>
               <MenuItem value="insurance">Insurance</MenuItem>
+              <MenuItem value="series">Series (TRAMPS-*)</MenuItem>
+              <MenuItem value="refund">Refund</MenuItem>
             </Select>
           </FormControl>
           <Tooltip title="Refresh"><IconButton onClick={fetchBookings} size="small"><ReloadOutlined /></IconButton></Tooltip>
+        </Box>
+        {/* Date range — filters bookings by createdAt between from/to. */}
+        <Box sx={{ display: 'flex', gap: 2, mb: 2.5, flexWrap: 'wrap', alignItems: 'center' }}>
+          <DateRangeFilter
+            label="Booking date:"
+            value={dateRange}
+            onChange={(v) => { setDateRange(v); setPage(1); }}
+            onClear={() => { setDateRange({ from: '', to: '' }); setPage(1); }}
+          />
         </Box>
 
         <TableContainer>
@@ -148,20 +199,45 @@ export default function BookingsPage() {
               ) : (
                 bookings.map((b: any) => {
                   const s = statusConfig[b.status] || { label: b.status, color: 'default' };
+                  // Detect series bookings — TBO result token prefixed with
+                  // TRAMPS- means this came from our in-house series fare
+                  // pipeline rather than a real GDS pull.
+                  const isSeries = (b.productType === 'series')
+                    || (typeof b.tboResultToken === 'string' && b.tboResultToken.startsWith('TRAMPS-'));
+                  const flightInfo = b.flightNumber || b.flightDetails?.flightNumber || b.segments?.[0]?.flightNumber;
+                  const seatInfo = b.seatNumbers?.length
+                    ? b.seatNumbers.join(', ')
+                    : b.passengers?.map((p: any) => p.seatNumber).filter(Boolean).join(', ');
+                  const pnr = b.pnr || b.airlinePnr || b.gdsPnr;
+                  // Customer fare = the agent-facing total (what was actually
+                  // charged to the agent's wallet) — prefer customerFare,
+                  // fall back to totalAmount.
+                  const customerFare = b.customerFare ?? b.totalAmount ?? 0;
                   return (
                     <TableRow key={b._id} hover>
                       <TableCell>
                         <Typography variant="body2" fontWeight={700} color="primary">{b.bookingRef || b._id?.slice(-8)}</Typography>
+                        {isSeries && (flightInfo || pnr) && (
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {flightInfo}{flightInfo && pnr ? ' · ' : ''}{pnr && `PNR ${pnr}`}
+                            {seatInfo ? ` · Seat ${seatInfo}` : ''}
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight={600}>{b.customerName || b.contactEmail || '—'}</Typography>
                         <Typography variant="caption" color="text.secondary">{b.customerEmail || b.contactEmail || '—'}</Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip label={b.type || 'flight'} size="small" variant="outlined" color="primary" />
+                        <Chip
+                          label={isSeries ? 'series' : (b.type || 'flight')}
+                          size="small"
+                          variant="outlined"
+                          color={isSeries ? 'warning' : 'primary'}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Typography fontWeight={700}>₹{(b.totalAmount || 0).toLocaleString('en-IN')}</Typography>
+                        <Typography fontWeight={700}>₹{Number(customerFare).toLocaleString('en-IN')}</Typography>
                       </TableCell>
                       <TableCell>{b.agentId?.agencyName || b.agentId?.contactPerson || 'Direct'}</TableCell>
                       <TableCell>{b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-IN') : '—'}</TableCell>

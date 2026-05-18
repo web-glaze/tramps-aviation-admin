@@ -9,6 +9,7 @@ import CustomersPage from '../pages/customers';
 import KycPage from '../pages/kyc';
 import BookingsPage from '../pages/bookings';
 import WalletPage from '../pages/wallet';
+import TopupRequestsPage from '../pages/topup-requests';
 import CommissionPage from '../pages/commission';
 import ReportsPage from '../pages/reports';
 import PromoPage from '../pages/promo';
@@ -19,7 +20,8 @@ import PopularContentPage from '../pages/popular-content';
 import ReviewsPage from '../pages/reviews';
 import PagesManager from '../pages/cms';
 import EnquiriesPage from '../pages/enquiries';
-import { FlightsPage, HotelsPage, InsurancePage, RefundsPage, SubagentsPage } from '../pages/misc';
+import SubAgentsPage from '../pages/subagents';
+import { FlightsPage, HotelsPage, InsurancePage, RefundsPage } from '../pages/misc';
 import { Box, Typography, Button, CircularProgress } from '@mui/material';
 import useUserContext from '../hooks/useUser';
 import { PERMISSIONS } from '../constants/permissions';
@@ -84,12 +86,13 @@ const router = createBrowserRouter([
       { path: 'agents', element: <ProtectedRoute permission={PERMISSIONS.AGENTS_VIEW} element={<AgentsPage />} />, errorElement: <PageError /> },
       { path: 'customers', element: <ProtectedRoute permission={PERMISSIONS.CUSTOMERS_VIEW} element={<CustomersPage />} />, errorElement: <PageError /> },
       { path: 'kyc', element: <ProtectedRoute permission={PERMISSIONS.KYC_VIEW} element={<KycPage />} />, errorElement: <PageError /> },
-      { path: 'subagents', element: <ProtectedRoute permission={PERMISSIONS.AGENTS_VIEW} element={<SubagentsPage />} />, errorElement: <PageError /> },
+      { path: 'subagents', element: <ProtectedRoute permission={PERMISSIONS.AGENTS_VIEW} element={<SubAgentsPage />} />, errorElement: <PageError /> },
       { path: 'bookings', element: <ProtectedRoute permission={PERMISSIONS.BOOKINGS_VIEW} element={<BookingsPage />} />, errorElement: <PageError /> },
       { path: 'flights', element: <ProtectedRoute permission={PERMISSIONS.BOOKINGS_VIEW} element={<FlightsPage />} />, errorElement: <PageError /> },
       { path: 'hotels', element: <ProtectedRoute permission={PERMISSIONS.BOOKINGS_VIEW} element={<HotelsPage />} />, errorElement: <PageError /> },
       { path: 'insurance', element: <ProtectedRoute permission={PERMISSIONS.BOOKINGS_VIEW} element={<InsurancePage />} />, errorElement: <PageError /> },
       { path: 'wallet', element: <ProtectedRoute permission={PERMISSIONS.WALLETS_VIEW} element={<WalletPage />} />, errorElement: <PageError /> },
+      { path: 'topup-requests', element: <ProtectedRoute permission={PERMISSIONS.WALLETS_VIEW} element={<TopupRequestsPage />} />, errorElement: <PageError /> },
       { path: 'commission', element: <ProtectedRoute permission={PERMISSIONS.COMMISSION_VIEW} element={<CommissionPage />} />, errorElement: <PageError /> },
       { path: 'refunds', element: <ProtectedRoute permission={PERMISSIONS.BOOKINGS_VIEW} element={<RefundsPage />} />, errorElement: <PageError /> },
       { path: 'reports', element: <ProtectedRoute permission={PERMISSIONS.REPORTS_VIEW} element={<ReportsPage />} />, errorElement: <PageError /> },

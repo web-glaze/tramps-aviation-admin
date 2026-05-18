@@ -53,6 +53,7 @@ import {
 } from "@ant-design/icons";
 import { trampsAviationFaresApi } from "../../api";
 import MainCard from "../../components/MainCard";
+import DateRangeFilter, { defaultLast30, DateRangeValue } from "../../components/DateRangeFilter";
 import useUserContext from "../../hooks/useUser";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -76,6 +77,18 @@ const emptyFlight: any = {
   airline: "",
   origin: "",
   destination: "",
+  // ── Split date/time fields (May 2026) ────────────────────────────────────
+  // Older fares were saved with a single travelDate + "HH:MM-HH:MM" timing
+  // string. The backend schema now also accepts departureDate / arrivalDate
+  // / departureTime / arrivalTime, and auto-mirrors them onto the legacy
+  // fields. We send both shapes on save so the listing tables (which still
+  // read travelDate/timing) keep working without further migration.
+  departureDate: "",
+  arrivalDate: "",
+  departureTime: "",
+  arrivalTime: "",
+  // Legacy fields — populated from the split fields on save for
+  // back-compat with the listing/table renderers.
   travelDate: "",
   timing: "",
   returnDate: "",
@@ -356,27 +369,93 @@ function parseBulk(text: string, type: string) {
     try {
       if (type === "flight") {
         if (p.length < 6) throw new Error("Need 6+ fields");
-        const [
-          flNo,
-          orig,
-          dest,
-          date,
-          timing,
-          fare,
-          bag,
-          airline,
-          tripT,
-          retDate,
-          retTiming,
-          seats,
-          stops,
-          baseFareRaw,
-          taxRaw,
-          viaAirport,
-          pnrsRaw,
-          segmentsRaw,
-        ] = p;
-        const [dep, arr] = (timing || "").split("-");
+        // ── Format detection ─────────────────────────────────────────────
+        // The bulk import accepts two flight layouts so old templates keep
+        // working after the May 2026 date/time split:
+        //   LEGACY (≥6 cols):  FlightNo | Origin | Dest | Date | Timing(HH:MM-HH:MM) | TotalFare | ...
+        //   NEW    (≥8 cols):  FlightNo | Origin | Dest | DepartureDate | ArrivalDate |
+        //                      DepartureTime | ArrivalTime | TotalFare | ...
+        // Heuristic: col index 4 in NEW is a YYYY-MM-DD date; in LEGACY
+        // it's a "HH:MM-HH:MM" timing string. If col[4] contains a colon
+        // it's almost certainly the timing column → legacy layout.
+        const isLegacyLayout = (p[4] || "").includes(":");
+        let flNo: string,
+          orig: string,
+          dest: string,
+          depDate: string,
+          arrDate: string,
+          depTime: string,
+          arrTime: string,
+          fare: string,
+          bag: string,
+          airline: string,
+          tripT: string,
+          retDate: string,
+          retTiming: string,
+          seats: string,
+          stops: string,
+          baseFareRaw: string,
+          taxRaw: string,
+          viaAirport: string,
+          pnrsRaw: string,
+          segmentsRaw: string;
+        if (isLegacyLayout) {
+          [
+            flNo,
+            orig,
+            dest,
+            depDate,
+            // legacy "HH:MM-HH:MM" → split into dep/arr times below
+            depTime, // placeholder, real values assigned after the split
+            fare,
+            bag,
+            airline,
+            tripT,
+            retDate,
+            retTiming,
+            seats,
+            stops,
+            baseFareRaw,
+            taxRaw,
+            viaAirport,
+            pnrsRaw,
+            segmentsRaw,
+          ] = p as any;
+          const timing = depTime;
+          const [dep, arr] = (timing || "").split("-");
+          depTime = (dep || "").trim();
+          arrTime = (arr || "").trim();
+          arrDate = depDate; // legacy templates can't express overnight arrivals
+        } else {
+          [
+            flNo,
+            orig,
+            dest,
+            depDate,
+            arrDate,
+            depTime,
+            arrTime,
+            fare,
+            bag,
+            airline,
+            tripT,
+            retDate,
+            retTiming,
+            seats,
+            stops,
+            baseFareRaw,
+            taxRaw,
+            viaAirport,
+            pnrsRaw,
+            segmentsRaw,
+          ] = p as any;
+          arrDate = arrDate || depDate;
+        }
+        const date = depDate; // kept for downstream code that reads `date`
+        const dep = depTime;
+        const arr = arrTime;
+        const timing =
+          depTime && arrTime ? `${depTime}-${arrTime}` : "";
 
         // ── Parse PNRs (optional column 17). Comma-separated. If empty,
         //    backend will auto-seed placeholder PNRs.
@@ -421,8 +500,14 @@ function parseBulk(text: string, type: string) {
           origin: orig.toUpperCase().slice(0, 3),
           destination: dest.toUpperCase().slice(0, 3),
           sector: `${orig.toUpperCase().slice(0, 3)}-${dest.toUpperCase().slice(0, 3)}`,
+          // Send both legacy + split fields so the backend (and any
+          // listing UI still reading travelDate/timing) sees consistent
+          // values. Legacy templates supply only depDate, in which case
+          // arrDate is set to depDate above.
           travelDate: date,
           timing,
+          departureDate: depDate,
+          arrivalDate: arrDate,
           departureTime: dep?.trim() || "",
           arrivalTime: arr?.trim() || "",
           fare: Number(fare) || 0,
@@ -509,8 +594,14 @@ const BULK_COLUMNS: Record<string, string[]> = {
     "FlightNo",
     "Origin",
     "Dest",
-    "Date",
-    "Timing",
+    // ── Split date/time columns (May 2026) ─────────────────────────────
+    // Legacy templates used a single "Date" + "Timing(HH:MM-HH:MM)" pair.
+    // The new headers are explicit; the parser still falls back to the
+    // legacy combined "Date"/"Timing" cells when only those are present.
+    "DepartureDate",
+    "ArrivalDate",
+    "DepartureTime",
+    "ArrivalTime",
     "TotalFare",
     "Baggage",
     "Airline",
@@ -545,67 +636,33 @@ const BULK_COLUMNS: Record<string, string[]> = {
   ],
 };
 
+// One canonical example per type — every column filled with realistic
+// values so admins can copy-paste and edit rather than reverse-engineer
+// blank cells from the header alone. PNRs are included because rows
+// without a pool are auto-deactivated server-side.
 const BULK_SAMPLE_ROWS: Record<string, string[][]> = {
   flight: [
     [
-      "IX-191",
-      "ATQ",
-      "DXB",
-      "2026-04-21",
-      "00:15-02:55",
-      "28700",
-      "30KG",
-      "Air India Express",
-      "OneWay",
-      "",
-      "",
-      "9",
-      "0",
-      "24000",
-      "4700",
-      "",
-      "",
-      "",
-    ],
-    [
-      "6E-211",
-      "DEL",
-      "BOM",
-      "2026-05-10",
-      "09:30-11:45",
-      "2000",
-      "15KG",
-      "IndiGo",
-      "OneWay",
-      "",
-      "",
-      "9",
-      "0",
-      "1700",
-      "300",
-      "",
-      "ABC123,DEF456,GHI789",
-      "",
-    ],
-    [
-      "AI-865",
-      "DEL",
-      "LHR",
-      "2026-06-15",
-      "02:00-08:30",
-      "65000",
-      "25KG",
-      "Air India",
-      "OneWay",
-      "",
-      "",
-      "8",
-      "2",
-      "55000",
-      "10000",
-      "DXB",
-      "PNR0001,PNR0002",
-      "AI-865,DEL,DXB,02:00,04:00;AI-865,DXB,IST,05:00,07:00;AI-865,IST,LHR,07:30,08:30",
+      "6E-211",                           // FlightNo
+      "DEL",                              // Origin
+      "BOM",                              // Dest
+      "2026-05-10",                       // DepartureDate
+      "2026-05-10",                       // ArrivalDate (= departureDate for same-day)
+      "09:30",                            // DepartureTime (HH:MM 24h)
+      "11:45",                            // ArrivalTime   (HH:MM 24h)
+      "4999",                             // TotalFare
+      "15KG",                             // Baggage
+      "IndiGo",                           // Airline
+      "OneWay",                           // TripType
+      "",                                 // ReturnDate
+      "",                                 // ReturnTiming
+      "9",                                // Seats
+      "0",                                // Stops
+      "4250",                             // BaseFare
+      "749",                              // TaxAmount
+      "",                                 // ViaAirport
+      "ABCD12,EFGH34,WXYZ56",             // PNRs (comma-separated)
+      "",                                 // Segments — leave blank for non-stop
     ],
   ],
   hotel: [
@@ -616,18 +673,18 @@ const BULK_SAMPLE_ROWS: Record<string, string[][]> = {
       "12000",
       "BREAKFAST_INCLUDED",
       "FREE_CANCELLATION",
-      "WiFi,Pool,Spa",
+      "WiFi,Pool,Spa,Gym,AC",
     ],
   ],
   insurance: [
     [
-      "Basic Cover",
-      "domestic",
-      "199",
-      "200000",
-      "10000",
-      "5000",
-      "Medical Emergency,Trip Cancellation",
+      "International Premium",
+      "international",
+      "799",
+      "500000",
+      "50000",
+      "25000",
+      "Medical Emergency,Trip Cancellation,Baggage Loss,Flight Delay",
     ],
   ],
 };
@@ -651,31 +708,34 @@ function looksLikeHeader(row: string[], type: string): boolean {
   return matches >= 2; // at least 2 known headers
 }
 
+// Per UX feedback (May 2026): the bulk import dialog used to show 2-4
+// half-filled examples per type and admins kept missing required columns.
+// We now ship ONE complete reference example per type — every column
+// populated with realistic values — so the meaning of each field is
+// unambiguous.
 const BULK_HINTS = {
   flight: {
     format:
-      "FlightNo | Origin | Dest | Date(YYYY-MM-DD) | Timing(HH:MM-HH:MM) | TotalFare | Baggage | Airline | TripType | ReturnDate | ReturnTiming | Seats | Stops | BaseFare | TaxAmount | ViaAirport | PNRs(comma) | Segments(FLT,ORIG,DEST,DEP,ARR;…)",
+      "FlightNo | Origin | Dest | DepartureDate(YYYY-MM-DD) | ArrivalDate(YYYY-MM-DD) | DepartureTime(HH:MM) | ArrivalTime(HH:MM) | TotalFare | Baggage | Airline | TripType | ReturnDate | ReturnTiming | Seats | Stops | BaseFare | TaxAmount | ViaAirport | PNRs(comma) | Segments(FLT,ORIG,DEST,DEP,ARR;…)",
     examples: [
-      "IX-191 | ATQ | DXB | 2026-04-21 | 00:15-02:55 | 28700 | 30KG | Air India Express | OneWay | | | 9 | 0 | 24000 | 4700 | | | ",
-      "6E-211 | DEL | BOM | 2026-05-10 | 09:30-11:45 | 2000 | 15KG | IndiGo | OneWay | | | 9 | 0 | 1700 | 300 | | ABC123,DEF456,GHI789 | ",
-      "IX-137 | ATQ | DXB | 2026-05-01 | 13:30-16:05 | 30000 | 30KG | Air India Express | OneWay | | | 12 | 1 | 25000 | 5000 | SHJ | | IX-137,ATQ,SHJ,13:30,15:00;IX-137,SHJ,DXB,15:30,16:05",
-      "AI-865 | DEL | LHR | 2026-06-15 | 02:00-08:30 | 65000 | 25KG | Air India | OneWay | | | 8 | 2 | 55000 | 10000 | DXB | PNR0001,PNR0002 | AI-865,DEL,DXB,02:00,04:00;AI-865,DXB,IST,05:00,07:00;AI-865,IST,LHR,07:30,08:30",
+      // New split-field example. The bulk parser also still accepts the
+      // legacy "...| Date | HH:MM-HH:MM | TotalFare | ..." layout for
+      // back-compat with previously-distributed templates.
+      "6E-211 | DEL | BOM | 2026-05-10 | 2026-05-10 | 09:30 | 11:45 | 4999 | 15KG | IndiGo | OneWay | | | 9 | 0 | 4250 | 749 | | ABCD12,EFGH34,WXYZ56 | ",
     ],
   },
   hotel: {
     format:
       "HotelName | City | Stars | PricePerNight | MealPlan | Cancellation | Amenities(comma)",
     examples: [
-      "Taj Mahal Palace | Mumbai | 5 | 12000 | BREAKFAST_INCLUDED | FREE_CANCELLATION | WiFi,Pool,Spa",
-      "Radisson Blu | Delhi | 4 | 6500 | ROOM_ONLY | FREE_CANCELLATION | WiFi,Gym",
+      "Taj Mahal Palace | Mumbai | 5 | 12000 | BREAKFAST_INCLUDED | FREE_CANCELLATION | WiFi,Pool,Spa,Gym,AC",
     ],
   },
   insurance: {
     format:
       "PlanName | TripType | Premium | MedicalCover | CancellationCover | BaggageCover | Benefits(comma)",
     examples: [
-      "Basic Cover | domestic | 199 | 200000 | 10000 | 5000 | Medical Emergency,Trip Cancellation",
-      "International Premium | international | 799 | 500000 | 50000 | 25000 | Medical Emergency,Trip Cancellation,Baggage Loss",
+      "International Premium | international | 799 | 500000 | 50000 | 25000 | Medical Emergency,Trip Cancellation,Baggage Loss,Flight Delay",
     ],
   },
 };
@@ -692,6 +752,10 @@ export default function TrampsTicketsPage() {
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState("");
+  // Date range filter — backend accepts `fromDate` / `toDate`, and after
+  // the backend's "OR query" change it matches either `travelDate` or the
+  // newer `departureDate` field so both legacy and new records show up.
+  const [dateRange, setDateRange] = useState<DateRangeValue>(defaultLast30());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editRec, setEditRec] = useState<any>(null);
   const [form, setForm] = useState<any>(emptyFlight);
@@ -726,6 +790,8 @@ export default function TrampsTicketsPage() {
       const params: any = { page, limit: 20, type };
       if (search) params.search = search;
       if (activeFilter !== "") params.isActive = activeFilter;
+      if (dateRange.from) params.fromDate = dateRange.from;
+      if (dateRange.to)   params.toDate   = dateRange.to;
       const res = await trampsAviationFaresApi.getAll(params);
       const raw = res.data?.data ?? res.data;
       const arr = Array.isArray(raw?.data)
@@ -740,7 +806,7 @@ export default function TrampsTicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, activeFilter, search, type]);
+  }, [page, activeFilter, search, type, dateRange]);
   const loadStats = async () => {
     try {
       const r = await trampsAviationFaresApi.getStats();
@@ -781,6 +847,20 @@ export default function TrampsTicketsPage() {
       fd.segments = Array.isArray(r.segments) ? r.segments : [];
       fd.pnrPool = Array.isArray(r.pnrPool) ? r.pnrPool : [];
       fd.pnrInput = ""; // always start with empty input field
+      // ── Back-compat: hydrate split date/time fields from legacy data ──
+      // Older fares stored a single travelDate + "HH:MM-HH:MM" timing
+      // string. Fall back to those when the new fields are missing so the
+      // edit dialog never shows blank required inputs for old records.
+      fd.departureDate = r.departureDate || r.travelDate || "";
+      fd.arrivalDate   = r.arrivalDate   || r.departureDate || r.travelDate || "";
+      if (!r.departureTime || !r.arrivalTime) {
+        const [dep, arr] = String(r.timing || "").split("-");
+        fd.departureTime = r.departureTime || (dep || "").trim();
+        fd.arrivalTime   = r.arrivalTime   || (arr || "").trim();
+      } else {
+        fd.departureTime = r.departureTime;
+        fd.arrivalTime   = r.arrivalTime;
+      }
     }
     setEditRec(r);
     setForm(fd);
@@ -793,8 +873,12 @@ export default function TrampsTicketsPage() {
         "flightNumber",
         "origin",
         "destination",
-        "travelDate",
-        "timing",
+        // Split date/time fields are the new source of truth. The legacy
+        // travelDate/timing are synthesized below from these on submit.
+        "departureDate",
+        "arrivalDate",
+        "departureTime",
+        "arrivalTime",
         "fare",
       ],
       hotel: ["hotelName", "city", "pricePerNight"],
@@ -803,6 +887,18 @@ export default function TrampsTicketsPage() {
     const missing = (required[type] || []).filter((k) => !form[k]);
     if (missing.length) {
       toast(`Required: ${missing.join(", ")}`, "error");
+      return;
+    }
+    // Explicit cross-field check — arrival cannot precede departure. The
+    // backend also rejects this, but failing in the UI gives a faster +
+    // clearer error than the generic 400.
+    if (
+      type === "flight" &&
+      form.departureDate &&
+      form.arrivalDate &&
+      form.arrivalDate < form.departureDate
+    ) {
+      toast("Arrival date cannot be before departure date.", "error");
       return;
     }
     setSaving(true);
@@ -848,6 +944,23 @@ export default function TrampsTicketsPage() {
         // Auto-derive viaAirport from first segment's destination
         if (segs.length > 0 && !form.viaAirport && segs[0]?.destination)
           payload.viaAirport = segs[0].destination;
+
+        // ── Date/time normalization ─────────────────────────────────────
+        // Send both the new split fields (departureDate / arrivalDate /
+        // departureTime / arrivalTime) AND the legacy combined fields
+        // (travelDate / timing) so older list/table renderers and any
+        // downstream consumer still work. Backend pre-save hook also
+        // mirrors these in either direction, but doing it here is cheap
+        // and makes the network payload self-explanatory.
+        payload.departureDate = form.departureDate || "";
+        payload.arrivalDate   = form.arrivalDate   || form.departureDate || "";
+        payload.departureTime = form.departureTime || "";
+        payload.arrivalTime   = form.arrivalTime   || "";
+        payload.travelDate    = form.departureDate || form.travelDate || "";
+        payload.timing        =
+          form.departureTime && form.arrivalTime
+            ? `${form.departureTime}-${form.arrivalTime}`
+            : (form.timing || "");
 
         // ── PNR Pool: parse pnrInput + merge with existing pnrPool ──
         const existingPool: string[] = Array.isArray(form.pnrPool)
@@ -1211,6 +1324,18 @@ export default function TrampsTicketsPage() {
             </Select>
           </FormControl>
         </Box>
+        {/* Date range — backend matches against travelDate OR departureDate
+            so both legacy and new records are returned. */}
+        {tabIdx === 0 && (
+          <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+            <DateRangeFilter
+              label="Travel/Departure date:"
+              value={dateRange}
+              onChange={(v) => { setDateRange(v); setPage(1); }}
+              onClear={() => { setDateRange({ from: '', to: '' }); setPage(1); }}
+            />
+          </Box>
+        )}
 
         <TableContainer>
           <Table size="small">
@@ -1309,12 +1434,26 @@ export default function TrampsTicketsPage() {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" fontFamily="monospace">
-                            {r.travelDate}
+                            {r.departureDate || r.travelDate}
+                            {r.arrivalDate &&
+                              r.departureDate &&
+                              r.arrivalDate !== r.departureDate && (
+                                <Typography
+                                  component="span"
+                                  variant="caption"
+                                  color="warning.main"
+                                  sx={{ ml: 0.5 }}
+                                >
+                                  →{r.arrivalDate}
+                                </Typography>
+                              )}
                           </Typography>
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" fontFamily="monospace">
-                            {r.timing}
+                            {r.departureTime && r.arrivalTime
+                              ? `${r.departureTime}-${r.arrivalTime}`
+                              : r.timing}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -1726,25 +1865,82 @@ export default function TrampsTicketsPage() {
                     </Select>
                   </FormControl>
                 </Grid>
+                {/* ── Departure / Arrival date+time ─────────────────────
+                    Replaced the old single "Travel Date" + "HH:MM-HH:MM"
+                    timing pair with 4 explicit inputs so admins can model
+                    overnight flights (arrivalDate > departureDate) without
+                    eyeballing a free-text range.  */}
                 <Grid size={3}>
                   <TextField
-                    label="Travel Date *"
+                    label="Departure Date *"
                     fullWidth
                     size="small"
                     type="date"
-                    value={form.travelDate || ""}
-                    onChange={(e) => f("travelDate", e.target.value)}
+                    value={form.departureDate || ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      f("departureDate", v);
+                      // Mirror onto legacy travelDate so the listing table
+                      // (which still reads travelDate) keeps showing this fare.
+                      f("travelDate", v);
+                      // If arrivalDate is empty or earlier than the new
+                      // departureDate, snap it to match — admin can still
+                      // bump it forward for overnight legs.
+                      if (!form.arrivalDate || form.arrivalDate < v) {
+                        f("arrivalDate", v);
+                      }
+                    }}
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
                 <Grid size={3}>
                   <TextField
-                    label="Timing * (HH:MM-HH:MM)"
+                    label="Arrival Date *"
                     fullWidth
                     size="small"
-                    placeholder="00:15-02:55"
-                    value={form.timing || ""}
-                    onChange={(e) => f("timing", e.target.value)}
+                    type="date"
+                    value={form.arrivalDate || form.departureDate || ""}
+                    onChange={(e) => f("arrivalDate", e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ min: form.departureDate || undefined }}
+                    helperText={
+                      form.arrivalDate &&
+                      form.departureDate &&
+                      form.arrivalDate < form.departureDate
+                        ? "Must be on or after departure date"
+                        : undefined
+                    }
+                    error={
+                      !!(
+                        form.arrivalDate &&
+                        form.departureDate &&
+                        form.arrivalDate < form.departureDate
+                      )
+                    }
+                  />
+                </Grid>
+                <Grid size={3}>
+                  <TextField
+                    label="Departure Time *"
+                    fullWidth
+                    size="small"
+                    type="time"
+                    value={form.departureTime || ""}
+                    onChange={(e) => f("departureTime", e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ step: 60 }}
+                  />
+                </Grid>
+                <Grid size={3}>
+                  <TextField
+                    label="Arrival Time *"
+                    fullWidth
+                    size="small"
+                    type="time"
+                    value={form.arrivalTime || ""}
+                    onChange={(e) => f("arrivalTime", e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ step: 60 }}
                   />
                 </Grid>
                 <Grid size={3}>

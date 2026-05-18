@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Box, Typography, Grid, TextField, Button, Switch, FormControlLabel,
-  Alert, Snackbar, Divider, Card, InputAdornment, Stack,
+  Alert, Snackbar, Divider, Card, InputAdornment, Stack, Tooltip, Chip,
 } from '@mui/material';
 import { SaveOutlined, SwapOutlined } from '@ant-design/icons';
 import { settingsApi } from '../../api';
@@ -9,13 +9,19 @@ import MainCard from '../../components/MainCard';
 import useUserContext from '../../hooks/useUser';
 import { PERMISSIONS } from '../../constants/permissions';
 
+// Detect whether we're running in a production build. Used to gate the
+// Series row in feature toggles — series mode is dev-only until the
+// pipeline is hardened.
+const IS_PROD = process.env.NODE_ENV === 'production';
+
 // Products that can have per-product markup / commission toggled by admin.
 // Order here drives the rendering order in the "Feature Toggles" card below.
-type FeatureProduct = 'flight' | 'hotel' | 'series';
-const FEATURE_PRODUCTS: { key: FeatureProduct; label: string; emoji: string }[] = [
-  { key: 'flight', label: 'Flights',      emoji: '✈️' },
-  { key: 'hotel',  label: 'Hotels',       emoji: '🏨' },
-  { key: 'series', label: 'Series Fares', emoji: '🎫' },
+type FeatureProduct = 'flight' | 'hotel' | 'series' | 'insurance';
+const FEATURE_PRODUCTS: { key: FeatureProduct; label: string; emoji: string; devOnly?: boolean }[] = [
+  { key: 'flight',    label: 'Flights',      emoji: '✈️' },
+  { key: 'hotel',     label: 'Hotels',       emoji: '🏨' },
+  { key: 'insurance', label: 'Insurance',    emoji: '🛡️' },
+  { key: 'series',    label: 'Series Fares', emoji: '🎫', devOnly: true },
 ];
 
 const defaultSettings = {
@@ -55,8 +61,8 @@ const defaultSettings = {
   // portal. Anything not in the list is force-disabled — agents see a lock
   // icon on the matching markup row, and search results omit commission for
   // that product.
-  markupEnabledProducts:     ['flight', 'hotel', 'series'] as FeatureProduct[],
-  commissionEnabledProducts: ['flight', 'hotel', 'series'] as FeatureProduct[],
+  markupEnabledProducts:     ['flight', 'hotel', 'insurance', 'series'] as FeatureProduct[],
+  commissionEnabledProducts: ['flight', 'hotel', 'insurance', 'series'] as FeatureProduct[],
   // Bank accounts shown on B2B "Make Payment → Bank Transfer" tab. Admin
   // adds entries via the new "Bank Accounts" card on this page; B2B reads
   // them via /admin/public-settings.
@@ -76,6 +82,10 @@ const defaultPricing = {
   hotelMarkup: 5,
   insuranceMarkup: 10,
   b2bDiscount: 3,
+  // Series fare markup — gated off in production (the backend currently
+  // disables series mode in prod). Default 0 so existing installs are
+  // unaffected.
+  seriesMarkup: 0,
 };
 
 export default function SettingsPage() {
@@ -103,6 +113,12 @@ export default function SettingsPage() {
           ? d.commissionEnabledProducts
           : s.commissionEnabledProducts,
       }));
+      // seriesMarkupPercent lives on the Settings doc (not on the
+      // /admin/pricing endpoint), so fold it into the pricing form state
+      // here. Fall back to 0 when the field is missing on older docs.
+      if (typeof d.seriesMarkupPercent === 'number') {
+        setPricing((p: any) => ({ ...p, seriesMarkup: d.seriesMarkupPercent }));
+      }
     }).catch(() => {});
 
     settingsApi.getPricingRules().then(res => {
@@ -129,7 +145,7 @@ export default function SettingsPage() {
     product: FeatureProduct,
   ) => {
     setSettings((s: any) => {
-      const cur: FeatureProduct[] = Array.isArray(s[field]) ? s[field] : ['flight', 'hotel', 'series'];
+      const cur: FeatureProduct[] = Array.isArray(s[field]) ? s[field] : ['flight', 'hotel', 'insurance', 'series'];
       const next = cur.includes(product)
         ? cur.filter((p) => p !== product)
         : [...cur, product];
@@ -159,6 +175,15 @@ export default function SettingsPage() {
   const handleSavePricing = async () => {
     try {
       await settingsApi.updatePricingRules(pricing);
+      // seriesMarkupPercent isn't accepted by the /admin/pricing endpoint —
+      // it lives directly on the Settings doc. Persist via /admin/settings
+      // so the dev-only field is saved alongside the rest of the markup
+      // rules. We only send it in non-prod where the field is editable.
+      if (!IS_PROD) {
+        await settingsApi.update({
+          seriesMarkupPercent: Number(pricing.seriesMarkup) || 0,
+        });
+      }
       setSnack({ open: true, msg: '✅ Pricing rules saved!', sev: 'success' });
     } catch { setSnack({ open: true, msg: '❌ Failed to save pricing', sev: 'error' }); }
   };
@@ -396,6 +421,25 @@ export default function SettingsPage() {
                     inputProps={{ min: 0, max: 100, step: 0.1 }} />
                 </Grid>
               ))}
+              {/* Series Markup — dev-only. Series fare pricing is gated off
+                  in production builds, so this input is hidden there to
+                  avoid the appearance of a setting that has no effect. */}
+              {!IS_PROD && (
+                <Grid size={12}>
+                  <TextField
+                    fullWidth
+                    label="🎫 Series Markup % (Dev only)"
+                    type="number"
+                    value={p.seriesMarkup ?? 0}
+                    onChange={e =>
+                      setPricing((f: any) => ({ ...f, seriesMarkup: e.target.value }))
+                    }
+                    InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
+                    inputProps={{ min: 0, max: 100, step: 0.1 }}
+                    helperText="Active only in development environment. Series fare markup is disabled in production."
+                  />
+                </Grid>
+              )}
               <Grid size={12}>
                 <Button variant="contained" color="secondary" startIcon={<SaveOutlined />} onClick={handleSavePricing} fullWidth disabled={!canEdit}>
                   Save Pricing Rules
@@ -443,9 +487,33 @@ export default function SettingsPage() {
             </Box>
 
             {/* Per-product rows */}
-            {FEATURE_PRODUCTS.map(({ key, label, emoji }) => {
+            {FEATURE_PRODUCTS.map(({ key, label, emoji, devOnly }) => {
               const markupOn     = isFeatureOn('markupEnabledProducts',     key);
               const commissionOn = isFeatureOn('commissionEnabledProducts', key);
+              // Dev-only products are locked in production builds — the
+              // backend still accepts them but we don't surface the toggles
+              // until the pipeline is fully production-ready.
+              const lockedForProd = !!devOnly && IS_PROD;
+              const switchesDisabled = !canEdit || lockedForProd;
+              const lockTooltip = lockedForProd
+                ? `${label} is dev-only — toggles are disabled in production builds.`
+                : '';
+              const markupSwitch = (
+                <Switch
+                  checked={markupOn}
+                  onChange={() => toggleFeature('markupEnabledProducts', key)}
+                  disabled={switchesDisabled}
+                  color="primary"
+                />
+              );
+              const commissionSwitch = (
+                <Switch
+                  checked={commissionOn}
+                  onChange={() => toggleFeature('commissionEnabledProducts', key)}
+                  disabled={switchesDisabled}
+                  color="success"
+                />
+              );
               return (
                 <Box
                   key={key}
@@ -460,34 +528,41 @@ export default function SettingsPage() {
                   }}
                 >
                   <Box>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                      {emoji} {label}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {emoji} {label}
+                      </Typography>
+                      {devOnly && (
+                        <Chip
+                          label="Dev only"
+                          size="small"
+                          color="warning"
+                          variant="outlined"
+                          sx={{ height: 18, fontSize: 10, fontWeight: 700 }}
+                        />
+                      )}
+                    </Box>
                     <Typography variant="caption" color="text.secondary">
-                      {!markupOn && !commissionOn
-                        ? 'Both disabled — agents see no markup row & no commission'
-                        : !markupOn
-                          ? 'Commission only — agents can\'t mark up'
-                          : !commissionOn
-                            ? 'Markup only — no commission paid'
-                            : 'Fully enabled'}
+                      {lockedForProd
+                        ? 'Locked in production builds'
+                        : !markupOn && !commissionOn
+                          ? 'Both disabled — agents see no markup row & no commission'
+                          : !markupOn
+                            ? 'Commission only — agents can\'t mark up'
+                            : !commissionOn
+                              ? 'Markup only — no commission paid'
+                              : 'Fully enabled'}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <Switch
-                      checked={markupOn}
-                      onChange={() => toggleFeature('markupEnabledProducts', key)}
-                      disabled={!canEdit}
-                      color="primary"
-                    />
+                    {lockedForProd
+                      ? <Tooltip title={lockTooltip}><span>{markupSwitch}</span></Tooltip>
+                      : markupSwitch}
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <Switch
-                      checked={commissionOn}
-                      onChange={() => toggleFeature('commissionEnabledProducts', key)}
-                      disabled={!canEdit}
-                      color="success"
-                    />
+                    {lockedForProd
+                      ? <Tooltip title={lockTooltip}><span>{commissionSwitch}</span></Tooltip>
+                      : commissionSwitch}
                   </Box>
                 </Box>
               );

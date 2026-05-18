@@ -1,7 +1,7 @@
 import {
   WalletOutlined, PercentageOutlined, BarChartOutlined,
   GiftOutlined, RollbackOutlined, BellOutlined, SettingOutlined,
-  FileTextOutlined, MailOutlined, SafetyOutlined,
+  FileTextOutlined, MailOutlined, SafetyOutlined, CheckSquareOutlined,
 } from '@ant-design/icons';
 import { PERMISSIONS } from '../constants/permissions';
 
@@ -16,6 +16,14 @@ const FinancePages = {
       type: 'item',
       url: '/wallet',
       icon: WalletOutlined,
+      permission: PERMISSIONS.WALLETS_VIEW,
+    },
+    {
+      id: 'topup-requests',
+      title: 'Top-up Approvals',
+      type: 'item',
+      url: '/topup-requests',
+      icon: CheckSquareOutlined,
       permission: PERMISSIONS.WALLETS_VIEW,
     },
     {

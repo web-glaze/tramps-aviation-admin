@@ -8,6 +8,7 @@ import {
 import { SearchOutlined, PlusOutlined, MinusOutlined, HistoryOutlined, ReloadOutlined } from '@ant-design/icons';
 import { walletApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import DateRangeFilter, { defaultLast30, DateRangeValue } from '../../components/DateRangeFilter';
 import useUserContext from '../../hooks/useUser';
 import { PERMISSIONS } from '../../constants/permissions';
 
@@ -29,6 +30,10 @@ export default function WalletPage() {
   const [histOpen, setHistOpen] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [histLoading, setHistLoading] = useState(false);
+  // Date range for the transaction history dialog. Backed by API query
+  // params `fromDate` / `toDate` — these are forwarded to the backend's
+  // /admin/wallets/:id/transactions endpoint.
+  const [txDateRange, setTxDateRange] = useState<DateRangeValue>(defaultLast30());
   const [snack, setSnack] = useState({ open: false, msg: '', sev: 'success' as any });
 
   const fetchWallets = useCallback(async () => {
@@ -70,9 +75,19 @@ export default function WalletPage() {
   const openHistory = async (wallet: any) => {
     setTxWallet(wallet);
     setHistOpen(true);
+    await loadHistory(wallet._id, txDateRange);
+  };
+
+  // Pull transactions for the currently-open wallet using the supplied
+  // date range. Extracted so the date-range filter inside the dialog can
+  // re-fetch without re-opening it.
+  const loadHistory = async (walletId: string, range: DateRangeValue) => {
     setHistLoading(true);
     try {
-      const res = await walletApi.getTransactions(wallet._id);
+      const params: any = {};
+      if (range.from) params.fromDate = range.from;
+      if (range.to)   params.toDate   = range.to;
+      const res = await (walletApi.getTransactions as any)(walletId, params);
       const raw = res.data?.data ?? res.data;
       const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
       setHistory(arr);
@@ -204,6 +219,21 @@ export default function WalletPage() {
       <Dialog open={histOpen} onClose={() => setHistOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Transaction History — {txWallet?.agentId?.contactPerson || txWallet?.agentId?.agencyName}</DialogTitle>
         <DialogContent dividers>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <DateRangeFilter
+              label="Date range:"
+              value={txDateRange}
+              onChange={(v) => {
+                setTxDateRange(v);
+                if (txWallet?._id) loadHistory(txWallet._id, v);
+              }}
+              onClear={() => {
+                const cleared = { from: '', to: '' };
+                setTxDateRange(cleared);
+                if (txWallet?._id) loadHistory(txWallet._id, cleared);
+              }}
+            />
+          </Box>
           {histLoading ? (
             Array(5).fill(0).map((_, i) => <Box key={i} sx={{ mb: 1 }}><Skeleton height={40} /></Box>)
           ) : history.length === 0 ? (

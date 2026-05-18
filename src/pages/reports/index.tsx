@@ -11,6 +11,7 @@ import {
 import { DownloadOutlined } from '@ant-design/icons';
 import { reportsApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import DateRangeFilter, { defaultLast30, DateRangeValue } from '../../components/DateRangeFilter';
 import useUserContext from '../../hooks/useUser';
 import { PERMISSIONS } from '../../constants/permissions';
 
@@ -21,6 +22,7 @@ export default function ReportsPage() {
   const canExport = can(PERMISSIONS.REPORTS_EXPORT);
 
   const [period, setPeriod] = useState('month');
+  const [dateRange, setDateRange] = useState<DateRangeValue>(defaultLast30());
   const [revenueData, setRevenueData] = useState<any>(null);
   const [bookingData, setBookingData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -28,21 +30,30 @@ export default function ReportsPage() {
   const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
+      // Reports already accept a `period` enum; the date-range filter adds
+      // a precise `fromDate` / `toDate` override that the backend treats
+      // as having higher precedence than `period` when provided.
+      const params: any = { period };
+      if (dateRange.from) params.fromDate = dateRange.from;
+      if (dateRange.to)   params.toDate   = dateRange.to;
       const [revRes, bkRes] = await Promise.all([
-        reportsApi.getRevenue({ period }),
-        reportsApi.getBookings({ period }),
+        reportsApi.getRevenue(params),
+        reportsApi.getBookings(params),
       ]);
       setRevenueData(revRes.data?.data || revRes.data);
       setBookingData(bkRes.data?.data || bkRes.data);
     } catch {}
     finally { setLoading(false); }
-  }, [period]);
+  }, [period, dateRange]);
 
   useEffect(() => { fetchReports(); }, [fetchReports]);
 
   const handleExport = async (type: string) => {
     try {
-      const res = await reportsApi.exportCsv(type, { period });
+      const params: any = { period };
+      if (dateRange.from) params.fromDate = dateRange.from;
+      if (dateRange.to)   params.toDate   = dateRange.to;
+      const res = await reportsApi.exportCsv(type, params);
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
       a.href = url;
@@ -97,6 +108,15 @@ export default function ReportsPage() {
             </Button>
           )}
         </Box>
+      </Box>
+      {/* Date range — overrides `period` when set. */}
+      <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+        <DateRangeFilter
+          label="Custom range:"
+          value={dateRange}
+          onChange={setDateRange}
+          onClear={() => setDateRange({ from: '', to: '' })}
+        />
       </Box>
 
       {/* Summary Cards */}

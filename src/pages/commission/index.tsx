@@ -54,6 +54,7 @@ import {
 } from "@ant-design/icons";
 import { commissionApi, agentsApi } from "../../api";
 import MainCard from "../../components/MainCard";
+import DateRangeFilter, { defaultLast30, DateRangeValue } from "../../components/DateRangeFilter";
 import useUserContext from "../../hooks/useUser";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -260,12 +261,51 @@ export default function CommissionPage() {
   const [form, setForm] = useState<RuleForm>(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  // ── Dev-only: seed default commission rules ────────────────
+  // Hidden in production builds — uses the backend's seed endpoint to
+  // bulk-insert sensible defaults so a fresh database isn't empty.
+  const IS_DEV = process.env.NODE_ENV !== 'production';
+  const [seeding, setSeeding] = useState(false);
+  const handleSeedDefaults = async () => {
+    if (!window.confirm(
+      'Seed default commission rules? This will create the standard global/airline/agent rules. Skipped if defaults already exist.',
+    )) {
+      return;
+    }
+    setSeeding(true);
+    try {
+      const res = await commissionApi.seedDefaults();
+      const inserted = res.data?.data?.inserted ?? res.data?.inserted;
+      setSnack({
+        open: true,
+        msg: inserted != null
+          ? `Seeded ${inserted} default rule${inserted === 1 ? '' : 's'}`
+          : 'Default rules seeded',
+        sev: 'success',
+      });
+      fetchRules();
+      fetchStats();
+    } catch (err: any) {
+      setSnack({
+        open: true,
+        msg: err?.response?.data?.message || 'Failed to seed default rules',
+        sev: 'error',
+      });
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   // Filters
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | RuleType>("all");
   const [activeFilter, setActiveFilter] = useState<
     "all" | "active" | "inactive"
   >("all");
+  // Date range — passed to backend as `fromDate` / `toDate`; backend can
+  // use it to filter by rule createdAt or validity window depending on its
+  // implementation. Sane default of last 30 days.
+  const [dateRange, setDateRange] = useState<DateRangeValue>(defaultLast30());
 
   // Preview calculator
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -288,6 +328,8 @@ export default function CommissionPage() {
       if (typeFilter !== "all") params.type = typeFilter;
       if (activeFilter !== "all") params.isActive = activeFilter === "active";
       if (search.trim()) params.search = search.trim();
+      if (dateRange.from) params.fromDate = dateRange.from;
+      if (dateRange.to)   params.toDate   = dateRange.to;
 
       const res = await commissionApi.getRules(params);
       const raw = res.data?.data ?? res.data;
@@ -340,7 +382,7 @@ export default function CommissionPage() {
     const t = setTimeout(fetchRules, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, typeFilter, activeFilter]);
+  }, [search, typeFilter, activeFilter, dateRange]);
 
   // ── Dialog handlers ─────────────────────────────────────────
   const openCreate = () => {
@@ -572,6 +614,20 @@ export default function CommissionPage() {
           >
             Refresh
           </Button>
+          {IS_DEV && canCreate && (
+            <Tooltip title="Insert a sensible set of default commission rules — dev/staging only">
+              <span>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  onClick={handleSeedDefaults}
+                  disabled={seeding}
+                >
+                  {seeding ? 'Seeding…' : 'Seed Default Rules (Dev Only)'}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
           {canCreate && (
             <Button
               variant="contained"
@@ -691,6 +747,15 @@ export default function CommissionPage() {
             <Tooltip title="Results update as you type / change filters">
               <FilterOutlined style={{ fontSize: 20, color: "#666" }} />
             </Tooltip>
+          </Grid>
+          {/* Date range — second row */}
+          <Grid size={12}>
+            <DateRangeFilter
+              label="Created between:"
+              value={dateRange}
+              onChange={setDateRange}
+              onClear={() => setDateRange({ from: '', to: '' })}
+            />
           </Grid>
         </Grid>
       </Paper>

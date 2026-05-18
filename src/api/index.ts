@@ -67,6 +67,19 @@ export const agentsApi = {
     apiClient.post('/admin/wallet/adjust', { agentId: agentCode, amount, type: 'credit', note }),
 };
 
+// ─── SUB-AGENTS ──────────────────────────────────────────────────────────────
+// Admin view of sub-agents created under master agents. Routes are served by
+// the AdminSubAgentController under /admin/subagents/*.
+export const subAgentsApi = {
+  list:        (params?: any) => apiClient.get('/admin/subagents', { params }),
+  getOne:      (id: string)   => apiClient.get(`/admin/subagents/${id}`),
+  suspend:     (id: string, reason?: string) =>
+    apiClient.post(`/admin/subagents/${id}/suspend`, { reason }),
+  unsuspend:   (id: string)   => apiClient.post(`/admin/subagents/${id}/unsuspend`),
+  getBookings: (id: string, params?: any) =>
+    apiClient.get(`/admin/subagents/${id}/bookings`, { params }),
+};
+
 // ─── CUSTOMERS ───────────────────────────────────────────────────────────────
 export const customersApi = {
   getAll: (params?: any) => apiClient.get('/admin/customers', { params }),
@@ -94,7 +107,7 @@ export const walletApi = {
   getAll: (params?: any) => apiClient.get('/admin/wallets', { params }),
   credit: (id: string, data: any) => apiClient.post(`/admin/wallets/${id}/credit`, data),
   debit: (id: string, data: any) => apiClient.post(`/admin/wallets/${id}/debit`, data),
-  getTransactions: (id: string) => apiClient.get(`/admin/wallets/${id}/transactions`),
+  getTransactions: (id: string, params?: any) => apiClient.get(`/admin/wallets/${id}/transactions`, { params }),
 };
 
 // ─── COMMISSION ───────────────────────────────────────────────────────────────
@@ -109,6 +122,24 @@ export const commissionApi = {
   getStats: () => apiClient.get('/admin/commission/stats'),
   preview: (data: any) => apiClient.post('/admin/commission/preview', data),
   bulkCreate: (rules: any[]) => apiClient.post('/admin/commission/rules/bulk', { rules }),
+  // Dev helper — seed a sensible set of default commission rules. Backend
+  // route is /admin/commission-rules/seed-defaults. UI button is gated by
+  // NODE_ENV !== 'production'.
+  seedDefaults: () => apiClient.post('/admin/commission-rules/seed-defaults', {}),
+};
+
+// ─── TOPUP REQUESTS ──────────────────────────────────────────────────────────
+// Agent-submitted wallet top-up requests awaiting admin approval. The
+// backend persists these as Transactions with `status: pending_review` —
+// the dedicated controller (POST /admin/topup-requests/...) exposes the
+// approve/reject workflow with audit fields (approverNote, rejectionReason).
+export const topupRequestsApi = {
+  list: (params?: any) => apiClient.get('/admin/topup-requests', { params }),
+  approve: (txnId: string, note?: string) =>
+    apiClient.post(`/admin/topup-requests/${txnId}/approve`, { note }),
+  reject: (txnId: string, reason: string) =>
+    apiClient.post(`/admin/topup-requests/${txnId}/reject`, { reason }),
+  getStats: () => apiClient.get('/admin/topup-requests/stats'),
 };
 
 // ─── REPORTS ─────────────────────────────────────────────────────────────────
@@ -180,13 +211,21 @@ export const cmsApi = {
 
 export default apiClient;
 
-export const mockDataApi = {
-  getAll:  (type?: string) => apiClient.get('/admin/mock-data', { params: type ? { type } : {} }),
-  create:  (data: any)     => apiClient.post('/admin/mock-data', data),
-  update:  (id: string, data: any) => apiClient.put(`/admin/mock-data/${id}`, data),
-  toggle:  (id: string)    => apiClient.put(`/admin/mock-data/${id}/toggle`),
-  delete:  (id: string)    => apiClient.delete(`/admin/mock-data/${id}`),
-};
+// `mockDataApi` exposes admin endpoints that seed/manipulate sample mock data
+// for local development. Production builds should never reach these — we gate
+// the export so importing `mockDataApi` in a prod bundle yields `undefined`
+// and any accidental call surfaces as a TypeError in dev rather than silently
+// hitting a real endpoint. Set NODE_ENV=production to disable.
+export const mockDataApi =
+  process.env.NODE_ENV !== 'production'
+    ? {
+        getAll:  (type?: string) => apiClient.get('/admin/mock-data', { params: type ? { type } : {} }),
+        create:  (data: any)     => apiClient.post('/admin/mock-data', data),
+        update:  (id: string, data: any) => apiClient.put(`/admin/mock-data/${id}`, data),
+        toggle:  (id: string)    => apiClient.put(`/admin/mock-data/${id}/toggle`),
+        delete:  (id: string)    => apiClient.delete(`/admin/mock-data/${id}`),
+      }
+    : undefined;
 
 // ─── REVIEWS ──────────────────────────────────────────────────────────────────
 export const reviewsApi = {

@@ -60,16 +60,5 @@ export function RefundsPage() {
   );
 }
 
-export function SubagentsPage() {
-  return (
-    <Box>
-      <Typography variant="h4" fontWeight={700} gutterBottom>🤝 Sub-Agents</Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>Manage sub-agents registered under main agents</Typography>
-      <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 4, textAlign: 'center' }}>
-        <Typography fontSize={64}>🤝</Typography>
-        <Typography variant="h5" fontWeight={700} sx={{ mt: 1 }}>Sub-Agent Management</Typography>
-        <Typography color="text.secondary" sx={{ mt: 1 }}>Full sub-agent management module coming soon.</Typography>
-      </Card>
-    </Box>
-  );
-}
+// NOTE: SubagentsPage placeholder was removed — the full module now lives at
+// `src/pages/subagents/index.tsx` and is registered at the `/subagents` route.
