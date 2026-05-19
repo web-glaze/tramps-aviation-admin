@@ -37,7 +37,13 @@ import {
   Stack,
   Paper,
   Badge,
+  Checkbox,
+  Toolbar,
+  Menu,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import {
   PlusOutlined,
   EditOutlined,
@@ -56,6 +62,21 @@ import MainCard from "../../components/MainCard";
 import DateRangeFilter, { defaultLast30, DateRangeValue } from "../../components/DateRangeFilter";
 import useUserContext from "../../hooks/useUser";
 import { PERMISSIONS } from "../../constants/permissions";
+
+// ── Compact date helper for the Schedule column ─────────────────────────────
+// "2026-05-18" → "18 May 26"  — fits two of these side-by-side in a 160px
+// column without wrapping. Falls back to the raw string if parsing fails so
+// legacy / malformed rows still render.
+const _MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtCompactDate(iso?: string): string {
+  if (!iso) return "—";
+  const m = String(iso).match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!m) return iso;
+  const y = m[1].slice(2);
+  const mo = _MONTHS[parseInt(m[2], 10) - 1] || m[2];
+  const d = parseInt(m[3], 10);
+  return `${d} ${mo} ${y}`;
+}
 
 const emptySegment = {
   flightNumber: "",
@@ -636,33 +657,33 @@ const BULK_COLUMNS: Record<string, string[]> = {
   ],
 };
 
-// One canonical example per type — every column filled with realistic
-// values so admins can copy-paste and edit rather than reverse-engineer
-// blank cells from the header alone. PNRs are included because rows
-// without a pool are auto-deactivated server-side.
+// One canonical example per type — EVERY column filled with realistic
+// values (RoundTrip + 1 stop) so admins can copy-paste and edit out the
+// fields they don't need rather than reverse-engineering blank cells.
+// PNRs match the seat count so the row is bookable as-is.
 const BULK_SAMPLE_ROWS: Record<string, string[][]> = {
   flight: [
     [
-      "6E-211",                           // FlightNo
-      "DEL",                              // Origin
-      "BOM",                              // Dest
-      "2026-05-10",                       // DepartureDate
-      "2026-05-10",                       // ArrivalDate (= departureDate for same-day)
-      "09:30",                            // DepartureTime (HH:MM 24h)
-      "11:45",                            // ArrivalTime   (HH:MM 24h)
-      "4999",                             // TotalFare
-      "15KG",                             // Baggage
-      "IndiGo",                           // Airline
-      "OneWay",                           // TripType
-      "",                                 // ReturnDate
-      "",                                 // ReturnTiming
-      "9",                                // Seats
-      "0",                                // Stops
-      "4250",                             // BaseFare
-      "749",                              // TaxAmount
-      "",                                 // ViaAirport
-      "ABCD12,EFGH34,WXYZ56",             // PNRs (comma-separated)
-      "",                                 // Segments — leave blank for non-stop
+      "6E-211",                                                                   // FlightNo
+      "DEL",                                                                      // Origin
+      "BLR",                                                                      // Dest
+      "2026-05-10",                                                               // DepartureDate
+      "2026-05-10",                                                               // ArrivalDate (= dep for same-day)
+      "09:30",                                                                    // DepartureTime (HH:MM 24h)
+      "13:45",                                                                    // ArrivalTime   (HH:MM 24h)
+      "5999",                                                                     // TotalFare
+      "15KG",                                                                     // Baggage
+      "IndiGo",                                                                   // Airline
+      "RoundTrip",                                                                // TripType
+      "2026-05-15",                                                               // ReturnDate
+      "18:00-22:15",                                                              // ReturnTiming (HH:MM-HH:MM)
+      "9",                                                                        // Seats
+      "1",                                                                        // Stops
+      "5100",                                                                     // BaseFare
+      "899",                                                                      // TaxAmount
+      "HYD",                                                                      // ViaAirport (used when Stops > 0)
+      "ABCD12,EFGH34,WXYZ56,QRST78,LMNO90,PQRS01,TUVW23,XYZA45,BCDE67",           // PNRs (9 PNRs = 9 seats)
+      "6E-211,DEL,HYD,09:30,11:30;6E-212,HYD,BLR,12:15,13:45",                    // Segments per stop leg
     ],
   ],
   hotel: [
@@ -721,7 +742,7 @@ const BULK_HINTS = {
       // New split-field example. The bulk parser also still accepts the
       // legacy "...| Date | HH:MM-HH:MM | TotalFare | ..." layout for
       // back-compat with previously-distributed templates.
-      "6E-211 | DEL | BOM | 2026-05-10 | 2026-05-10 | 09:30 | 11:45 | 4999 | 15KG | IndiGo | OneWay | | | 9 | 0 | 4250 | 749 | | ABCD12,EFGH34,WXYZ56 | ",
+      "6E-211 | DEL | BLR | 2026-05-10 | 2026-05-10 | 09:30 | 13:45 | 5999 | 15KG | IndiGo | RoundTrip | 2026-05-15 | 18:00-22:15 | 9 | 1 | 5100 | 899 | HYD | ABCD12,EFGH34,WXYZ56,QRST78,LMNO90,PQRS01,TUVW23,XYZA45,BCDE67 | 6E-211,DEL,HYD,09:30,11:30;6E-212,HYD,BLR,12:15,13:45",
     ],
   },
   hotel: {
@@ -779,6 +800,91 @@ export default function TrampsTicketsPage() {
   const [pnrPoolList, setPnrPoolList] = useState<string[]>([]);
   const [pnrInput, setPnrInput] = useState(""); // textarea input for bulk add
   const [pnrSaving, setPnrSaving] = useState(false);
+
+  // ── Multi-select / bulk actions ──────────────────────────────────────────
+  // selectedIds tracks fare _id strings that have their row checkbox ticked.
+  // Bulk Delete / Bulk Deactivate fan-out via Promise.allSettled — the
+  // backend doesn't yet expose dedicated bulk endpoints, so individual
+  // DELETE / PATCH calls are issued in parallel for the selected rows.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  // ── Row action menu ──────────────────────────────────────────────────
+  // Per-row Edit / PNRs / Toggle / Delete were taking up 4 icon-buttons
+  // worth of horizontal space and breaking the table layout. We now
+  // collapse them into a single 3-dot MoreVert menu opened against the
+  // anchor element below. Only one menu is open at a time so we can
+  // share a single state pair across all rows.
+  const [actionMenuRow, setActionMenuRow] = useState<any>(null);
+  const [actionMenuAnchor, setActionMenuAnchor] = useState<null | HTMLElement>(null);
+  const openActionMenu = (row: any, el: HTMLElement) => {
+    setActionMenuRow(row);
+    setActionMenuAnchor(el);
+  };
+  const closeActionMenu = () => {
+    setActionMenuRow(null);
+    setActionMenuAnchor(null);
+  };
+  const [bulkActionRunning, setBulkActionRunning] = useState(false);
+  // Reset the selection whenever the tab, search, page or filters change so
+  // a stale checked id from the Flights tab never accidentally triggers a
+  // delete in the Hotels tab.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [tabIdx, page, search, activeFilter, dateRange]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = (checked: boolean) => {
+    if (checked) setSelectedIds(new Set(records.map((r: any) => r._id)));
+    else setSelectedIds(new Set());
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const runBulkAction = async (
+    label: "deactivate" | "delete",
+  ) => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    setBulkActionRunning(true);
+    try {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          label === "delete"
+            ? trampsAviationFaresApi.delete(id)
+            : trampsAviationFaresApi.toggle(id),
+        ),
+      );
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const fail = results.length - ok;
+      if (fail === 0) {
+        toast(
+          label === "delete"
+            ? `🗑 Deleted ${ok} ticket${ok !== 1 ? "s" : ""}`
+            : `⏸ Toggled ${ok} ticket${ok !== 1 ? "s" : ""}`,
+          "success",
+        );
+      } else {
+        toast(
+          `${ok} succeeded, ${fail} failed`,
+          ok > 0 ? "warning" : "error",
+        );
+      }
+      clearSelection();
+      setBulkDeleteOpen(false);
+      load();
+      loadStats();
+    } catch {
+      toast("Bulk action failed", "error");
+    } finally {
+      setBulkActionRunning(false);
+    }
+  };
 
   const types = ["flight", "hotel", "insurance"];
   const type = types[tabIdx];
@@ -1337,22 +1443,105 @@ export default function TrampsTicketsPage() {
           </Box>
         )}
 
-        <TableContainer>
+        {/* ── Bulk-action toolbar — only renders when at least one row is
+              checked. Bulk Deactivate fans out toggleActive in parallel;
+              Bulk Delete prompts a confirm dialog before fanning out
+              delete in parallel. There is no dedicated bulk endpoint
+              on the backend yet, so per-row calls are wrapped in
+              Promise.allSettled and the success/failure counts are
+              surfaced via the existing toast snackbar. ─────────────── */}
+        {selectedIds.size > 0 && (
+          <Toolbar
+            disableGutters
+            sx={{
+              mb: 1.5,
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              bgcolor: "primary.lighter",
+              border: "1px solid",
+              borderColor: "primary.light",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 1,
+              minHeight: "auto !important",
+            }}
+          >
+            <Typography variant="body2" fontWeight={700} sx={{ flex: 1 }}>
+              {selectedIds.size} selected
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              color="warning"
+              startIcon={<StopOutlined />}
+              disabled={bulkActionRunning}
+              onClick={() => runBulkAction("deactivate")}
+            >
+              Bulk Deactivate
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="error"
+              startIcon={<DeleteOutlined />}
+              disabled={bulkActionRunning}
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              Bulk Delete
+            </Button>
+            <Button
+              size="small"
+              variant="text"
+              disabled={bulkActionRunning}
+              onClick={clearSelection}
+            >
+              Clear Selection
+            </Button>
+          </Toolbar>
+        )}
+
+        <TableContainer sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    size="small"
+                    color="primary"
+                    indeterminate={
+                      selectedIds.size > 0 &&
+                      selectedIds.size < records.length
+                    }
+                    checked={
+                      records.length > 0 &&
+                      selectedIds.size === records.length
+                    }
+                    onChange={(e) => toggleSelectAll(e.target.checked)}
+                    disabled={loading || records.length === 0}
+                  />
+                </TableCell>
                 <TableCell>#</TableCell>
                 {tabIdx === 0 && (
                   <>
                     <TableCell>Flight</TableCell>
                     <TableCell>Sector</TableCell>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Timing</TableCell>
-                    <TableCell>Trip</TableCell>
+                    {/* SCHEDULE — combines Dep/Arr Date and Dep/Arr Time into
+                        one stacked column to keep the table responsive on
+                        narrow screens. Previously these were 4 separate
+                        columns which forced horizontal overflow. */}
+                    <TableCell sx={{ minWidth: 140 }}>Schedule</TableCell>
+                    <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                      Trip
+                    </TableCell>
                     <TableCell>Fare ₹</TableCell>
-                    <TableCell>Baggage</TableCell>
+                    <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                      Baggage
+                    </TableCell>
                     <TableCell>Seats</TableCell>
-                    <TableCell>Stops/Seg</TableCell>
+                    <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+                      Stops/Seg
+                    </TableCell>
                   </>
                 )}
                 {tabIdx === 1 && (
@@ -1385,7 +1574,12 @@ export default function TrampsTicketsPage() {
                   .fill(0)
                   .map((_, i) => (
                     <TableRow key={i}>
-                      {Array(12)
+                      {/* Flight tab: 13 columns (checkbox + # + Flight +
+                          Sector + Schedule + Trip + Fare + Baggage + Seats +
+                          Stops + Mode + Status + Actions). Hotels/Insurance
+                          keep 11. Skeleton count is informational only —
+                          colSpan only matters for the empty-state row. */}
+                      {Array(tabIdx === 0 ? 13 : 11)
                         .fill(0)
                         .map((_, j) => (
                           <TableCell key={j}>
@@ -1396,7 +1590,11 @@ export default function TrampsTicketsPage() {
                   ))
               ) : records.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} align="center" sx={{ py: 6 }}>
+                  <TableCell
+                    colSpan={tabIdx === 0 ? 13 : 11}
+                    align="center"
+                    sx={{ py: 6 }}
+                  >
                     <Typography color="text.secondary">
                       No {type} tickets found.
                     </Typography>
@@ -1404,7 +1602,19 @@ export default function TrampsTicketsPage() {
                 </TableRow>
               ) : (
                 records.map((r, i) => (
-                  <TableRow key={r._id} hover>
+                  <TableRow
+                    key={r._id}
+                    hover
+                    selected={selectedIds.has(r._id)}
+                  >
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        size="small"
+                        color="primary"
+                        checked={selectedIds.has(r._id)}
+                        onChange={() => toggleSelect(r._id)}
+                      />
+                    </TableCell>
                     <TableCell>{(page - 1) * 20 + i + 1}</TableCell>
 
                     {r.type === "flight" && (
@@ -1432,31 +1642,101 @@ export default function TrampsTicketsPage() {
                             variant="outlined"
                           />
                         </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontFamily="monospace">
-                            {r.departureDate || r.travelDate}
-                            {r.arrivalDate &&
-                              r.departureDate &&
-                              r.arrivalDate !== r.departureDate && (
+                        {/* SCHEDULE — single column combining dep/arr date
+                             + dep/arr time stacked vertically. Falls back to
+                             legacy `travelDate` + `timing` for rows that
+                             predate the May-2026 schema split. ALWAYS shows
+                             both departure and arrival dates side-by-side so
+                             admins see at a glance whether the flight lands
+                             same-day or next-day. Overnight flights get a
+                             warning-colour indicator on the arrival date. */}
+                        <TableCell sx={{ minWidth: 140, whiteSpace: "nowrap" }}>
+                          {(() => {
+                            const dep = r.departureDate || r.travelDate || "";
+                            const arr = r.arrivalDate || r.travelDate || dep;
+                            const depTime =
+                              r.departureTime ||
+                              r.timing?.split("-")[0]?.trim() ||
+                              "";
+                            const arrTime =
+                              r.arrivalTime ||
+                              r.timing?.split("-")[1]?.trim() ||
+                              "";
+                            const overnight = !!(arr && dep && arr !== dep);
+                            return (
+                              <Box sx={{ lineHeight: 1.4 }}>
+                                {/* DATE LINE — compact "DD MMM YY" format so
+                                     both dep and arr dates fit on one row
+                                     without wrapping. */}
                                 <Typography
-                                  component="span"
                                   variant="caption"
-                                  color="warning.main"
-                                  sx={{ ml: 0.5 }}
+                                  sx={{
+                                    fontSize: 11,
+                                    display: "block",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  color="text.secondary"
                                 >
-                                  →{r.arrivalDate}
+                                  {fmtCompactDate(dep)}
+                                  <Typography
+                                    component="span"
+                                    variant="caption"
+                                    sx={{ mx: 0.5, fontSize: 11 }}
+                                    color="text.disabled"
+                                  >
+                                    →
+                                  </Typography>
+                                  <Typography
+                                    component="span"
+                                    variant="caption"
+                                    sx={{ fontSize: 11 }}
+                                    color={
+                                      overnight ? "warning.main" : "text.secondary"
+                                    }
+                                  >
+                                    {fmtCompactDate(arr)}
+                                    {overnight && (
+                                      <Typography
+                                        component="span"
+                                        variant="caption"
+                                        color="warning.main"
+                                        sx={{ ml: 0.5, fontSize: 10, fontWeight: 700 }}
+                                      >
+                                        +1d
+                                      </Typography>
+                                    )}
+                                  </Typography>
                                 </Typography>
-                              )}
-                          </Typography>
+                                {/* TIME LINE — dominant, bold for quick scan. */}
+                                <Typography
+                                  variant="body2"
+                                  fontFamily="monospace"
+                                  sx={{
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {depTime || "—"}
+                                  {arrTime && (
+                                    <Typography
+                                      component="span"
+                                      variant="body2"
+                                      color="text.secondary"
+                                      sx={{ mx: 0.5, fontSize: 12 }}
+                                    >
+                                      →
+                                    </Typography>
+                                  )}
+                                  {arrTime}
+                                </Typography>
+                              </Box>
+                            );
+                          })()}
                         </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontFamily="monospace">
-                            {r.departureTime && r.arrivalTime
-                              ? `${r.departureTime}-${r.arrivalTime}`
-                              : r.timing}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
+                        <TableCell
+                          sx={{ display: { xs: "none", sm: "table-cell" } }}
+                        >
                           <Chip
                             label={r.tripType || "OneWay"}
                             size="small"
@@ -1494,7 +1774,9 @@ export default function TrampsTicketsPage() {
                             </Typography>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell
+                          sx={{ display: { xs: "none", md: "table-cell" } }}
+                        >
                           <Typography variant="caption">{r.baggage}</Typography>
                           <Typography
                             variant="caption"
@@ -1505,7 +1787,9 @@ export default function TrampsTicketsPage() {
                           </Typography>
                         </TableCell>
                         <TableCell>{r.seatsAvailable || "—"}</TableCell>
-                        <TableCell>
+                        <TableCell
+                          sx={{ display: { xs: "none", lg: "table-cell" } }}
+                        >
                           {(r.stops || 0) > 0 ? (
                             <Chip
                               label={`${r.stops} stop`}
@@ -1651,39 +1935,18 @@ export default function TrampsTicketsPage() {
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box
-                        sx={{
-                          display: "flex",
-                          gap: 0.5,
-                          justifyContent: "center",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        {canEdit && (
-                          <Tooltip title="Edit">
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => openEdit(r)}
-                            >
-                              <EditOutlined />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {/* PNR Pool button — only for flights */}
-                        {canEdit && r.type === "flight" && (
-                          <Tooltip
-                            title={`PNR Pool: ${(r.pnrPool || []).length} PNR(s) available`}
+                      {/* Single 3-dot menu — collapses Edit / PNRs /
+                          Toggle / Delete into one button to save column
+                          width. Badge on the dot itself shows PNR pool
+                          count so the empty-pool warning is still visible
+                          without opening the menu. */}
+                      {canEdit && (
+                        <Tooltip title="Row actions">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => openActionMenu(r, e.currentTarget)}
                           >
-                            <IconButton
-                              size="small"
-                              color={
-                                (r.pnrPool || []).length === 0
-                                  ? "error"
-                                  : "success"
-                              }
-                              onClick={() => openPnrPool(r)}
-                            >
+                            {r.type === "flight" ? (
                               <Badge
                                 badgeContent={(r.pnrPool || []).length}
                                 color={
@@ -1692,39 +1955,16 @@ export default function TrampsTicketsPage() {
                                     : "success"
                                 }
                                 max={99}
+                                overlap="circular"
                               >
-                                <KeyOutlined />
+                                <MoreVertIcon fontSize="small" />
                               </Badge>
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {canEdit && (
-                          <Tooltip title={r.isActive ? "Deactivate" : "Activate"}>
-                            <IconButton
-                              size="small"
-                              color={r.isActive ? "warning" : "success"}
-                              onClick={() => handleToggle(r)}
-                            >
-                              {r.isActive ? (
-                                <StopOutlined />
-                              ) : (
-                                <CheckCircleOutlined />
-                              )}
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {canEdit && (
-                          <Tooltip title="Delete">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => setDeleteTarget(r)}
-                            >
-                              <DeleteOutlined />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                      </Box>
+                            ) : (
+                              <MoreVertIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -1732,6 +1972,88 @@ export default function TrampsTicketsPage() {
             </TableBody>
           </Table>
         </TableContainer>
+
+        {/* ── Shared row-action menu ──────────────────────────────────────
+            One Menu instance for the whole table — opens against whichever
+            row's 3-dot button was clicked. Lighter than rendering 4 buttons
+            per row and keeps the Actions column compact. */}
+        <Menu
+          anchorEl={actionMenuAnchor}
+          open={Boolean(actionMenuAnchor)}
+          onClose={closeActionMenu}
+          slotProps={{ paper: { sx: { minWidth: 180 } } }}
+        >
+          <MenuItem
+            onClick={() => {
+              const row = actionMenuRow;
+              closeActionMenu();
+              if (row) openEdit(row);
+            }}
+          >
+            <ListItemIcon>
+              <EditOutlined style={{ fontSize: 16 }} />
+            </ListItemIcon>
+            <ListItemText primary="Edit" />
+          </MenuItem>
+          {actionMenuRow?.type === "flight" && (
+            <MenuItem
+              onClick={() => {
+                const row = actionMenuRow;
+                closeActionMenu();
+                if (row) openPnrPool(row);
+              }}
+            >
+              <ListItemIcon>
+                <Badge
+                  badgeContent={(actionMenuRow?.pnrPool || []).length}
+                  color={
+                    (actionMenuRow?.pnrPool || []).length === 0
+                      ? "error"
+                      : "success"
+                  }
+                  max={99}
+                >
+                  <KeyOutlined style={{ fontSize: 16 }} />
+                </Badge>
+              </ListItemIcon>
+              <ListItemText
+                primary="Manage PNRs"
+                secondary={`${(actionMenuRow?.pnrPool || []).length} in pool`}
+              />
+            </MenuItem>
+          )}
+          <MenuItem
+            onClick={() => {
+              const row = actionMenuRow;
+              closeActionMenu();
+              if (row) handleToggle(row);
+            }}
+          >
+            <ListItemIcon>
+              {actionMenuRow?.isActive ? (
+                <StopOutlined style={{ fontSize: 16, color: "#ed6c02" }} />
+              ) : (
+                <CheckCircleOutlined style={{ fontSize: 16, color: "#2e7d32" }} />
+              )}
+            </ListItemIcon>
+            <ListItemText
+              primary={actionMenuRow?.isActive ? "Deactivate" : "Activate"}
+            />
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              const row = actionMenuRow;
+              closeActionMenu();
+              if (row) setDeleteTarget(row);
+            }}
+            sx={{ color: "error.main" }}
+          >
+            <ListItemIcon>
+              <DeleteOutlined style={{ fontSize: 16, color: "#d32f2f" }} />
+            </ListItemIcon>
+            <ListItemText primary="Delete" />
+          </MenuItem>
+        </Menu>
 
         <Box
           sx={{
@@ -3156,6 +3478,70 @@ export default function TrampsTicketsPage() {
             onClick={handleDelete}
           >
             Yes, Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Bulk Delete Confirm ─────────────────────────────────────────────
+            Triggered from the "Bulk Delete" button in the multi-select
+            toolbar. Shows the count and warns it cannot be undone. The
+            actual fan-out happens in runBulkAction("delete") via
+            Promise.allSettled — partial failures surface as a warning
+            toast. */}
+      <Dialog
+        open={bulkDeleteOpen}
+        onClose={() =>
+          !bulkActionRunning && setBulkDeleteOpen(false)
+        }
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogContent sx={{ textAlign: "center", pt: 4, pb: 2 }}>
+          <Box
+            sx={{
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              bgcolor: "error.lighter",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mx: "auto",
+              mb: 2,
+            }}
+          >
+            <ExclamationCircleOutlined
+              style={{ fontSize: 26, color: "#d32f2f" }}
+            />
+          </Box>
+          <Typography variant="h6" fontWeight={600} gutterBottom>
+            Delete {selectedIds.size} ticket
+            {selectedIds.size !== 1 ? "s" : ""}?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            This will permanently remove the selected{" "}
+            <b>{selectedIds.size}</b>{" "}
+            {type} ticket{selectedIds.size !== 1 ? "s" : ""}. This action
+            cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            disabled={bulkActionRunning}
+            onClick={() => setBulkDeleteOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            fullWidth
+            variant="contained"
+            color="error"
+            disabled={bulkActionRunning}
+            onClick={() => runBulkAction("delete")}
+          >
+            {bulkActionRunning ? "Deleting…" : "Yes, Delete All"}
           </Button>
         </DialogActions>
       </Dialog>
