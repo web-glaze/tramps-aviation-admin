@@ -142,6 +142,37 @@ export const topupRequestsApi = {
   getStats: () => apiClient.get('/admin/topup-requests/stats'),
 };
 
+// ─── WITHDRAW APPROVALS ──────────────────────────────────────────────────────
+// Agent-submitted cash-out requests awaiting admin processing. The amount
+// is HELD on the agent wallet at submission time (balance reduced,
+// holdAmount increased); approve flips the hold into a permanent DEBIT
+// with the recorded UTR, reject releases the hold back to balance.
+export const withdrawApprovalsApi = {
+  list: (params?: any) => apiClient.get('/admin/withdraw-requests', { params }),
+  getStats: () => apiClient.get('/admin/withdraw-requests/stats'),
+  approve: (id: string, data: { utrNumber: string; note?: string }) =>
+    apiClient.post(`/admin/withdraw-requests/${id}/approve`, data),
+  reject: (id: string, data: { reason: string }) =>
+    apiClient.post(`/admin/withdraw-requests/${id}/reject`, data),
+};
+
+// ─── TBO SETTLEMENTS ─────────────────────────────────────────────────────────
+// Weekly TBO invoice reconciliation. Admin enters/uploads what TBO billed,
+// the backend cross-checks against our internal bookings collection and
+// flags discrepancies before we push the NEFT to TBO.
+export const tboSettlementsApi = {
+  list:    (params?: any) => apiClient.get('/admin/tbo-settlements', { params }),
+  getStats: () => apiClient.get('/admin/tbo-settlements/stats'),
+  getOne:  (id: string) => apiClient.get(`/admin/tbo-settlements/${id}`),
+  create:  (data: any) => apiClient.post('/admin/tbo-settlements', data),
+  reconcile: (id: string) =>
+    apiClient.post(`/admin/tbo-settlements/${id}/reconcile`, {}),
+  markPaid: (id: string, data: { transactionRef: string; note?: string }) =>
+    apiClient.post(`/admin/tbo-settlements/${id}/mark-paid`, data),
+  getDiscrepancies: (id: string) =>
+    apiClient.get(`/admin/tbo-settlements/${id}/discrepancies`),
+};
+
 // ─── REPORTS ─────────────────────────────────────────────────────────────────
 export const reportsApi = {
   getRevenue: (params?: any) => apiClient.get('/admin/reports/revenue', { params }),

@@ -2,6 +2,7 @@ import {
   WalletOutlined, PercentageOutlined, BarChartOutlined,
   GiftOutlined, RollbackOutlined, BellOutlined, SettingOutlined,
   FileTextOutlined, MailOutlined, SafetyOutlined, CheckSquareOutlined,
+  ExportOutlined, ReconciliationOutlined,
 } from '@ant-design/icons';
 import { PERMISSIONS } from '../constants/permissions';
 
@@ -25,6 +26,22 @@ const FinancePages = {
       url: '/topup-requests',
       icon: CheckSquareOutlined,
       permission: PERMISSIONS.WALLETS_VIEW,
+    },
+    {
+      id: 'withdraw-approvals',
+      title: 'Withdraw Approvals',
+      type: 'item',
+      url: '/withdraw-approvals',
+      icon: ExportOutlined,
+      permission: PERMISSIONS.WALLETS_VIEW,
+    },
+    {
+      id: 'tbo-settlements',
+      title: 'TBO Settlements',
+      type: 'item',
+      url: '/tbo-settlements',
+      icon: ReconciliationOutlined,
+      permission: PERMISSIONS.REPORTS_VIEW,
     },
     {
       id: 'commission',

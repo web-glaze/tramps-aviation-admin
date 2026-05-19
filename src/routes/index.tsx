@@ -10,6 +10,8 @@ import KycPage from '../pages/kyc';
 import BookingsPage from '../pages/bookings';
 import WalletPage from '../pages/wallet';
 import TopupRequestsPage from '../pages/topup-requests';
+import WithdrawApprovalsPage from '../pages/withdraw-approvals';
+import TboSettlementsPage from '../pages/tbo-settlements';
 import CommissionPage from '../pages/commission';
 import ReportsPage from '../pages/reports';
 import PromoPage from '../pages/promo';
@@ -93,6 +95,8 @@ const router = createBrowserRouter([
       { path: 'insurance', element: <ProtectedRoute permission={PERMISSIONS.BOOKINGS_VIEW} element={<InsurancePage />} />, errorElement: <PageError /> },
       { path: 'wallet', element: <ProtectedRoute permission={PERMISSIONS.WALLETS_VIEW} element={<WalletPage />} />, errorElement: <PageError /> },
       { path: 'topup-requests', element: <ProtectedRoute permission={PERMISSIONS.WALLETS_VIEW} element={<TopupRequestsPage />} />, errorElement: <PageError /> },
+      { path: 'withdraw-approvals', element: <ProtectedRoute permission={PERMISSIONS.WALLETS_VIEW} element={<WithdrawApprovalsPage />} />, errorElement: <PageError /> },
+      { path: 'tbo-settlements', element: <ProtectedRoute permission={PERMISSIONS.REPORTS_VIEW} element={<TboSettlementsPage />} />, errorElement: <PageError /> },
       { path: 'commission', element: <ProtectedRoute permission={PERMISSIONS.COMMISSION_VIEW} element={<CommissionPage />} />, errorElement: <PageError /> },
       { path: 'refunds', element: <ProtectedRoute permission={PERMISSIONS.BOOKINGS_VIEW} element={<RefundsPage />} />, errorElement: <PageError /> },
       { path: 'reports', element: <ProtectedRoute permission={PERMISSIONS.REPORTS_VIEW} element={<ReportsPage />} />, errorElement: <PageError /> },

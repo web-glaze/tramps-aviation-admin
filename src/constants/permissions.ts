@@ -32,6 +32,10 @@ export const PERMISSIONS = {
   WALLETS_CREDIT: 'wallets.credit',
   WALLETS_DEBIT: 'wallets.debit',
   WALLETS_FREEZE: 'wallets.freeze',
+  // Approve / reject manual top-ups and withdraws. Distinct from
+  // credit/debit so an org can give a junior admin "credit wallets" but
+  // not "approve agent-submitted bank-transfer top-ups".
+  WALLETS_APPROVE: 'wallets.approve',
 
   // Commission
   COMMISSION_VIEW: 'commission.view',

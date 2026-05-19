@@ -173,9 +173,19 @@ export default function Dashboard() {
         ))}
       </Grid>
 
+      {/* When Top Agents is empty (fresh platform, no agent bookings yet)
+          we collapse that column and let Recent Bookings take the full
+          row — leaving a dead empty-state next to it looked bad and
+          wasted ~40% of the viewport. As soon as the first agent
+          booking lands the column re-appears automatically. */}
+      {(() => {
+        const hasTopAgents =
+          Array.isArray(stats?.topAgents) &&
+          stats!.topAgents.some((a: any) => (a?.totalRevenue || 0) > 0);
+        return (
       <Grid container spacing={2.5}>
         {/* Recent Bookings */}
-        <Grid size={{ xs: 12, lg: 7 }}>
+        <Grid size={{ xs: 12, lg: hasTopAgents ? 7 : 12 }}>
           <MainCard
             title="Recent Bookings"
             secondary={
@@ -238,7 +248,11 @@ export default function Dashboard() {
           </MainCard>
         </Grid>
 
-        {/* Top Agents */}
+        {/* Top Agents — only renders when there's at least one agent
+            with revenue OR data is still loading. Empty state was
+            collapsing the column anyway (above) so we drop the card
+            entirely instead of showing a "no agents yet" placeholder. */}
+        {(loading || hasTopAgents) && (
         <Grid size={{ xs: 12, lg: 5 }}>
           <MainCard
             title="Top Performing Agents"
@@ -256,11 +270,6 @@ export default function Dashboard() {
                   <Skeleton width={60} />
                 </Box>
               ))
-            ) : (stats?.topAgents || []).length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-                <TeamOutlined style={{ fontSize: 32, opacity: 0.3 }} />
-                <Typography variant="body2" sx={{ mt: 1 }}>No agents yet</Typography>
-              </Box>
             ) : (
               (stats?.topAgents || []).map((a: any, i: number) => (
                 <Box key={a._id || i}>
@@ -288,7 +297,10 @@ export default function Dashboard() {
             )}
           </MainCard>
         </Grid>
+        )}
       </Grid>
+        );
+      })()}
 
       {/* Quick Actions — Full Width Row */}
       <MainCard title="Quick Actions" sx={{ mt: 3 }}>
