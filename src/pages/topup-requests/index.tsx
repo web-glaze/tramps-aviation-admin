@@ -13,6 +13,7 @@ import {
 import { topupRequestsApi } from '../../api';
 import MainCard from '../../components/MainCard';
 import DateRangeFilter, { defaultLast30, DateRangeValue } from '../../components/DateRangeFilter';
+import useDebounce from '../../hooks/useDebounce';
 import useUserContext from '../../hooks/useUser';
 import { PERMISSIONS } from '../../constants/permissions';
 
@@ -63,6 +64,8 @@ export default function TopupRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [search, setSearch] = useState('');
+  // Debounce search so the API fires ~400ms after typing stops, not per key.
+  const debouncedSearch = useDebounce(search, 400);
   const [status, setStatus] = useState<Status>('pending');
   const [dateRange, setDateRange] = useState<DateRangeValue>(defaultLast30());
   const [page, setPage] = useState(1);
@@ -81,7 +84,7 @@ export default function TopupRequestsPage() {
     try {
       const params: any = { page, limit: 20 };
       if (status !== 'all') params.status = status;
-      if (search.trim()) params.search = search.trim();
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
       if (dateRange.from) params.fromDate = dateRange.from;
       if (dateRange.to)   params.toDate   = dateRange.to;
       const res = await topupRequestsApi.list(params);
@@ -91,7 +94,7 @@ export default function TopupRequestsPage() {
       setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setRows([]); }
     finally { setLoading(false); }
-  }, [page, status, search, dateRange]);
+  }, [page, status, debouncedSearch, dateRange]);
 
   const fetchStats = async () => {
     try {

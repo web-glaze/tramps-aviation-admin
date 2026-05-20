@@ -8,6 +8,7 @@ import {
 import { SearchOutlined, EyeOutlined, StopOutlined, ReloadOutlined } from '@ant-design/icons';
 import { customersApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useDebounce from '../../hooks/useDebounce';
 import useUserContext from '../../hooks/useUser';
 import { PERMISSIONS } from '../../constants/permissions';
 
@@ -18,6 +19,8 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // Debounce search so the API fires ~400ms after typing stops, not per key.
+  const debouncedSearch = useDebounce(search, 400);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<any>(null);
@@ -27,14 +30,14 @@ export default function CustomersPage() {
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await customersApi.getAll({ page, limit: 10, search });
+      const res = await customersApi.getAll({ page, limit: 10, search: debouncedSearch });
       const raw = res.data?.data ?? res.data;
       const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
       setCustomers(arr);
       setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setCustomers([]); }
     finally { setLoading(false); }
-  }, [page, search]);
+  }, [page, debouncedSearch]);
 
   useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 

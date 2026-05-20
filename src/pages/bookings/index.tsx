@@ -10,6 +10,7 @@ import { SearchOutlined, EyeOutlined, StopOutlined, RollbackOutlined, ReloadOutl
 import { bookingsApi } from '../../api';
 import MainCard from '../../components/MainCard';
 import DateRangeFilter, { defaultLast30, DateRangeValue } from '../../components/DateRangeFilter';
+import useDebounce from '../../hooks/useDebounce';
 import useUserContext from '../../hooks/useUser';
 import { PERMISSIONS } from '../../constants/permissions';
 
@@ -35,6 +36,8 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // Debounce search so the API fires ~400ms after typing stops, not per key.
+  const debouncedSearch = useDebounce(search, 400);
   const [statusFilter, setStatusFilter] = useState('');
   // Pre-fill the type filter from `?type=...` (e.g. the sidebar's
   // "Series Bookings" entry deep-links to `/bookings?type=series`). We
@@ -58,7 +61,7 @@ export default function BookingsPage() {
       // "Series" is a UI-only filter — map it to the backend's productType
       // query param (or tokenPrefix as a fallback). All other types map 1:1
       // to the existing `type` query param.
-      const params: any = { page, limit: 10, search, status: statusFilter };
+      const params: any = { page, limit: 10, search: debouncedSearch, status: statusFilter };
       if (typeFilter === 'series') {
         params.productType = 'series';
         params.tokenPrefix = 'TRAMPS-';
@@ -74,7 +77,7 @@ export default function BookingsPage() {
       setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setBookings([]); }
     finally { setLoading(false); }
-  }, [page, statusFilter, typeFilter, search, dateRange]);
+  }, [page, statusFilter, typeFilter, debouncedSearch, dateRange]);
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 

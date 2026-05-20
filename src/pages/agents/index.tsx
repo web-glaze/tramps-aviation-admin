@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import { agentsApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useDebounce from '../../hooks/useDebounce';
 import useUserContext from '../../hooks/useUser';
 import { PERMISSIONS } from '../../constants/permissions';
 
@@ -28,6 +29,10 @@ export default function AgentsPage() {
   const [agents, setAgents]           = useState<any[]>([]);
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState('');
+  // Debounce the search term so the API fires ~400ms after the user stops
+  // typing — not on every keystroke. The TextField stays bound to `search`
+  // so typing remains instant.
+  const debouncedSearch               = useDebounce(search, 400);
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage]               = useState(1);
   const [total, setTotal]             = useState(0);
@@ -46,13 +51,13 @@ export default function AgentsPage() {
   const fetchAgents = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await agentsApi.getAll({ page, limit: 10, search, status: statusFilter });
+      const res = await agentsApi.getAll({ page, limit: 10, search: debouncedSearch, status: statusFilter });
       const raw = res.data?.data ?? res.data;
       const arr = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
       setAgents(arr);
       setTotal(raw?.pagination?.total || arr.length || 0);
     } catch { setAgents([]); } finally { setLoading(false); }
-  }, [page, statusFilter, search]);
+  }, [page, statusFilter, debouncedSearch]);
 
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
 

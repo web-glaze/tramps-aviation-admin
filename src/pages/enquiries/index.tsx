@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import apiClient from '../../api';
 import MainCard from '../../components/MainCard';
+import useDebounce from '../../hooks/useDebounce';
 import useUserContext from '../../hooks/useUser';
 import { PERMISSIONS } from '../../constants/permissions';
 
@@ -46,6 +47,8 @@ export default function EnquiriesPage() {
   const [total, setTotal]         = useState(0);
   const [page, setPage]           = useState(1);
   const [search, setSearch]       = useState('');
+  // Debounce search so the API fires ~400ms after typing stops, not per key.
+  const debouncedSearch           = useDebounce(search, 400);
   const [statusF, setStatusF]     = useState('');
   const [typeF, setTypeF]         = useState('');
   const [selected, setSelected]   = useState<any>(null);
@@ -58,13 +61,13 @@ export default function EnquiriesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await contactApi.getAll({ page, limit: 15, status: statusF, type: typeF, search });
+      const res = await contactApi.getAll({ page, limit: 15, status: statusF, type: typeF, search: debouncedSearch });
       const d   = res.data?.data || res.data;
       setRows(Array.isArray(d?.data) ? d.data : []);
       setTotal(d?.pagination?.total || 0);
       if (d?.stats) setStats(d.stats);
     } catch { setRows([]); } finally { setLoading(false); }
-  }, [page, statusF, typeF, search]);
+  }, [page, statusF, typeF, debouncedSearch]);
 
   useEffect(() => { load(); }, [load]);
 

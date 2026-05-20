@@ -60,6 +60,7 @@ import {
 import { trampsAviationFaresApi } from "../../api";
 import MainCard from "../../components/MainCard";
 import DateRangeFilter, { defaultLast30, DateRangeValue } from "../../components/DateRangeFilter";
+import useDebounce from "../../hooks/useDebounce";
 import useUserContext from "../../hooks/useUser";
 import { PERMISSIONS } from "../../constants/permissions";
 
@@ -769,6 +770,8 @@ export default function TrampsTicketsPage() {
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  // Debounce search so the API fires ~400ms after typing stops, not per key.
+  const debouncedSearch = useDebounce(search, 400);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<any>(null);
@@ -830,7 +833,7 @@ export default function TrampsTicketsPage() {
   // delete in the Hotels tab.
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [tabIdx, page, search, activeFilter, dateRange]);
+  }, [tabIdx, page, debouncedSearch, activeFilter, dateRange]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -894,7 +897,7 @@ export default function TrampsTicketsPage() {
     setLoading(true);
     try {
       const params: any = { page, limit: 20, type };
-      if (search) params.search = search;
+      if (debouncedSearch) params.search = debouncedSearch;
       if (activeFilter !== "") params.isActive = activeFilter;
       if (dateRange.from) params.fromDate = dateRange.from;
       if (dateRange.to)   params.toDate   = dateRange.to;
@@ -912,7 +915,7 @@ export default function TrampsTicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, activeFilter, search, type, dateRange]);
+  }, [page, activeFilter, debouncedSearch, type, dateRange]);
   const loadStats = async () => {
     try {
       const r = await trampsAviationFaresApi.getStats();

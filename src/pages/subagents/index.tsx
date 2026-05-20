@@ -13,6 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { subAgentsApi } from '../../api';
 import MainCard from '../../components/MainCard';
+import useDebounce from '../../hooks/useDebounce';
 import useUserContext from '../../hooks/useUser';
 import { PERMISSIONS } from '../../constants/permissions';
 
@@ -80,6 +81,8 @@ export default function SubAgentsPage() {
   const [rows, setRows]                 = useState<SubAgentRow[]>([]);
   const [loading, setLoading]           = useState(true);
   const [search, setSearch]             = useState('');
+  // Debounce search so the API fires ~400ms after typing stops, not per key.
+  const debouncedSearch                 = useDebounce(search, 400);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [page, setPage]                 = useState(1);
   const [total, setTotal]               = useState(0);
@@ -108,7 +111,7 @@ export default function SubAgentsPage() {
       const res = await subAgentsApi.list({
         page,
         limit: PAGE_SIZE,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter || undefined,
       });
       const raw = res.data?.data ?? res.data;
@@ -129,7 +132,7 @@ export default function SubAgentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, debouncedSearch, statusFilter]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
 
