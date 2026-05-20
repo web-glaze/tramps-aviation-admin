@@ -200,6 +200,14 @@ export default function KycPage() {
 
   useEffect(() => { fetchKycs(); }, [fetchKycs]);
 
+  // Realtime — refetch when an agent submits new KYC docs so the
+  // reviewer queue auto-updates instead of needing a manual refresh.
+  useEffect(() => {
+    const onKyc = () => fetchKycs();
+    window.addEventListener('admin:kyc:submitted', onKyc);
+    return () => window.removeEventListener('admin:kyc:submitted', onKyc);
+  }, [fetchKycs]);
+
   const handleApprove = async (id: string) => {
     setActionLoading(id + "_approve");
     try {

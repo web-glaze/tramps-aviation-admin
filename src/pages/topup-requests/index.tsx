@@ -103,6 +103,31 @@ export default function TopupRequestsPage() {
   useEffect(() => { fetchList(); }, [fetchList]);
   useEffect(() => { fetchStats(); }, []);
 
+  // Realtime — refresh the queue + counter cards whenever a new top-up
+  // request lands or the server signals stats changed. Show a snackbar
+  // so the reviewing admin notices the new entry even if they're
+  // mid-scroll.
+  useEffect(() => {
+    const onNewTopup = (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      const name = detail.agentName || detail.agentCode || 'Agent';
+      const amount = Number(detail.amount || 0).toLocaleString('en-IN');
+      setSnack({ open: true, msg: `New top-up: ${name} — ₹${amount}`, sev: 'info' });
+      fetchList();
+      fetchStats();
+    };
+    const onStatsRefresh = () => {
+      fetchList();
+      fetchStats();
+    };
+    window.addEventListener('admin:topup:submitted', onNewTopup);
+    window.addEventListener('admin:stats:refresh', onStatsRefresh);
+    return () => {
+      window.removeEventListener('admin:topup:submitted', onNewTopup);
+      window.removeEventListener('admin:stats:refresh', onStatsRefresh);
+    };
+  }, [fetchList]);
+
   const handleApprove = async () => {
     if (!approveTarget) return;
     setActioning(true);

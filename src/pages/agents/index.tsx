@@ -55,6 +55,15 @@ export default function AgentsPage() {
   }, [page, statusFilter, search]);
 
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
+
+  // Realtime — refetch when a new agent registers so they appear in the
+  // pending-approval queue without a manual refresh.
+  useEffect(() => {
+    const onAgent = () => fetchAgents();
+    window.addEventListener('admin:agent:registered', onAgent);
+    return () => window.removeEventListener('admin:agent:registered', onAgent);
+  }, [fetchAgents]);
+
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); fetchAgents(); };
 
   const handleApprove = async (id: string) => {

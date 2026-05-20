@@ -7,6 +7,12 @@ import Drawer from './Drawer';
 import { ActionType } from '../../hooks/useMenu';
 import useMenu from '../../hooks/useMenu';
 import useUserContext from '../../hooks/useUser';
+import NotificationPermissionPrompt from '../../components/NotificationPermissionPrompt';
+import {
+  initFCM,
+  isFCMSupported,
+  getFCMPermissionState,
+} from '../../lib/fcm/web-messaging';
 
 const DRAWER_WIDTH = 260;
 const MINI_DRAWER_WIDTH = 70;
@@ -37,6 +43,18 @@ const MainLayout = () => {
     // eslint-disable-next-line
   }, [drawerOpen]);
 
+  // ── FCM auto-init for returning admins ────────────────────────────────────
+  // If permission was granted in a previous session, silently re-register
+  // the SW + refresh the device token so the backend always has a current
+  // entry. New admins see the NotificationPermissionPrompt instead.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (!isFCMSupported()) return;
+    if (getFCMPermissionState() === 'granted') {
+      initFCM();
+    }
+  }, [isAuthenticated]);
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (
@@ -60,6 +78,7 @@ const MainLayout = () => {
         <Toolbar sx={{ minHeight: '60px !important' }} />
         <Outlet />
       </Box>
+      <NotificationPermissionPrompt />
     </Box>
   );
 };

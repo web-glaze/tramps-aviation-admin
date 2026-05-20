@@ -128,6 +128,29 @@ export default function WithdrawApprovalsPage() {
     fetchStats();
   }, []);
 
+  // Realtime — refresh queue + counters when a new withdraw request is
+  // submitted by an agent, or when the server flags a stats change.
+  useEffect(() => {
+    const onNewWithdraw = (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      const name = detail.agentName || detail.agentCode || 'Agent';
+      const amount = Number(detail.amount || 0).toLocaleString('en-IN');
+      setSnack({ open: true, msg: `New withdraw request: ${name} — ₹${amount}`, sev: 'info' });
+      fetchList();
+      fetchStats();
+    };
+    const onStatsRefresh = () => {
+      fetchList();
+      fetchStats();
+    };
+    window.addEventListener('admin:withdraw:submitted', onNewWithdraw);
+    window.addEventListener('admin:stats:refresh', onStatsRefresh);
+    return () => {
+      window.removeEventListener('admin:withdraw:submitted', onNewWithdraw);
+      window.removeEventListener('admin:stats:refresh', onStatsRefresh);
+    };
+  }, [fetchList]);
+
   const handleApprove = async () => {
     if (!approveTarget) return;
     if (!approveUtr.trim()) {

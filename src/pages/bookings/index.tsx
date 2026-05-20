@@ -78,6 +78,15 @@ export default function BookingsPage() {
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
+  // Realtime — re-pull the list on any booking lifecycle event. Cheap
+  // refetch (page is paginated, limit=10) — no need to splice into
+  // existing state and risk mis-sorting.
+  useEffect(() => {
+    const onBookingUpdate = () => fetchBookings();
+    window.addEventListener('admin:booking:update', onBookingUpdate);
+    return () => window.removeEventListener('admin:booking:update', onBookingUpdate);
+  }, [fetchBookings]);
+
   // React to ?type= changes that happen after mount — e.g. when the user
   // clicks the "Series Bookings" sidebar entry while already on /bookings.
   // Without this, the URL would update but the filter dropdown wouldn't.

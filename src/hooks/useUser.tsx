@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { authApi } from '../api';
+import { connectAdminSocket, disconnectAdminSocket } from '../lib/realtime/socket';
 
 interface User {
   id: string;
@@ -119,7 +120,27 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Realtime socket lifecycle — connect whenever we have an authenticated
+  // admin user + token (covers admin, superadmin, and sub-admin roles —
+  // the backend gates by JWT, not by role string, so we don't second-guess
+  // here). Disconnect otherwise. Replaces the previous polling pattern;
+  // the /admin namespace pushes booking, top-up, withdraw, KYC and stats
+  // events instead.
+  useEffect(() => {
+    const token = localStorage.getItem('admin_token');
+    if (token && user) {
+      connectAdminSocket(token);
+    } else {
+      disconnectAdminSocket();
+    }
+    return () => {
+      // Only fully tear down on logout / page unload. Re-renders no-op
+      // via the `socket?.connected` guard inside connectAdminSocket.
+    };
+  }, [user]);
+
   const logout = () => {
+    disconnectAdminSocket();
     localStorage.removeItem('admin_token');
     persistUser(null);
   };

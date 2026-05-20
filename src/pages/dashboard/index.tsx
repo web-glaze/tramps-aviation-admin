@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Box, Grid, Typography, Skeleton, Card, CardContent,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -82,7 +82,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useUserContext();
 
-  useEffect(() => {
+  const fetchStats = useCallback(() => {
     dashboardApi.getStats()
       .then((res) => {
         const d = res.data?.data ?? res.data;
@@ -100,6 +100,25 @@ export default function Dashboard() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { fetchStats(); }, [fetchStats]);
+
+  // Realtime — refetch dashboard whenever the server says stats changed,
+  // a booking moved through a state, or a new top-up/withdraw lands.
+  // Previously this page had no auto-refresh at all (admin had to F5).
+  useEffect(() => {
+    const refresh = () => fetchStats();
+    window.addEventListener('admin:stats:refresh', refresh);
+    window.addEventListener('admin:booking:update', refresh);
+    window.addEventListener('admin:topup:submitted', refresh);
+    window.addEventListener('admin:withdraw:submitted', refresh);
+    return () => {
+      window.removeEventListener('admin:stats:refresh', refresh);
+      window.removeEventListener('admin:booking:update', refresh);
+      window.removeEventListener('admin:topup:submitted', refresh);
+      window.removeEventListener('admin:withdraw:submitted', refresh);
+    };
+  }, [fetchStats]);
 
   const cards = [
     { title: 'Total Agents',     value: stats?.totalAgents     ?? 0, icon: TeamOutlined,              color: '#1890ff', bg: '#e6f4ff', path: '/agents' },
