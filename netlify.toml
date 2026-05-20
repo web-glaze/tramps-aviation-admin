@@ -6,7 +6,6 @@
   CI = "false"
   SKIP_PREFLIGHT_CHECK = "true"
   GENERATE_SOURCEMAP = "false"
-
   # Netlify's secret scanner flags any env-var VALUE found in repo files or
   # build output. Firebase web config (apiKey, projectId, authDomain,
   # senderId, appId, storageBucket, vapidKey) is public by design — it is

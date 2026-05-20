@@ -68,7 +68,6 @@ export const agentsApi = {
 };
 
 // ─── SUB-AGENTS ──────────────────────────────────────────────────────────────
-// Admin view of sub-agents created under master agents. Routes are served by
 // the AdminSubAgentController under /admin/subagents/*.
 export const subAgentsApi = {
   list:        (params?: any) => apiClient.get('/admin/subagents', { params }),
