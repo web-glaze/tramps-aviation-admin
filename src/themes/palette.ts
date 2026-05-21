@@ -73,6 +73,7 @@ const Palette = (mode: PaletteMode) => ({
 
   // Blue is the dominant brand colour (~80% of UI)
   primary: {
+    lighter:      blue[0],    // #e8f6fc — pale blue tint for soft surfaces
     light:        blue[2],    // #9cd6ee
     main:         blue[5],    // #209ACD ← LOGO BLUE
     dark:         blue[7],    // #176c91
@@ -81,16 +82,17 @@ const Palette = (mode: PaletteMode) => ({
 
   // Orange is the accent (~20% of UI)
   secondary: {
+    lighter:      orange[0],  // #fdece6 — pale orange tint for soft surfaces
     light:        orange[2],  // #f7ad94
     main:         orange[5],  // #CF4D26 ← LOGO ORANGE
     dark:         orange[7],  // #92341a
     contrastText: '#fff',
   },
 
-  error:   { light: red[2],    main: red[5],    dark: red[7],    contrastText: '#fff' },
-  warning: { light: orange[2], main: orange[5], dark: orange[7], contrastText: '#fff' }, // brand orange
-  info:    { light: blue[2],   main: blue[5],   dark: blue[7],   contrastText: '#fff' }, // brand blue
-  success: { light: green[3],  main: green[5],  dark: green[7],  contrastText: '#fff' },
+  error:   { lighter: red[0],    light: red[2],    main: red[5],    dark: red[7],    contrastText: '#fff' }, // pale red
+  warning: { lighter: orange[0], light: orange[2], main: orange[5], dark: orange[7], contrastText: '#fff' }, // brand orange
+  info:    { lighter: blue[0],   light: blue[2],   main: blue[5],   dark: blue[7],   contrastText: '#fff' }, // brand blue
+  success: { lighter: green[0],  light: green[3],  main: green[5],  dark: green[7],  contrastText: '#fff' }, // pale green
   grey,
   text: {
     primary:   grey[8],   // darker, more readable

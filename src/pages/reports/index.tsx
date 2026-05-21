@@ -62,14 +62,16 @@ export default function ReportsPage() {
     } catch {}
   };
 
-  // Fallback chart data when API not connected
+  // Fallback chart data when API not connected.
+  // Key MUST be `date` — the XAxis below reads `dataKey="date"`. Using
+  // `month` here meant the fallback chart rendered with blank X labels.
   const chartRevenue = revenueData?.chart || [
-    { month: 'Jan', revenue: 120000, bookings: 45 },
-    { month: 'Feb', revenue: 180000, bookings: 62 },
-    { month: 'Mar', revenue: 150000, bookings: 54 },
-    { month: 'Apr', revenue: 220000, bookings: 78 },
-    { month: 'May', revenue: 190000, bookings: 68 },
-    { month: 'Jun', revenue: 280000, bookings: 95 },
+    { date: 'Jan', revenue: 120000, bookings: 45 },
+    { date: 'Feb', revenue: 180000, bookings: 62 },
+    { date: 'Mar', revenue: 150000, bookings: 54 },
+    { date: 'Apr', revenue: 220000, bookings: 78 },
+    { date: 'May', revenue: 190000, bookings: 68 },
+    { date: 'Jun', revenue: 280000, bookings: 95 },
   ];
 
   const pieData = revenueData?.byType || [
@@ -145,7 +147,7 @@ export default function ReportsPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartRevenue}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#888" }} tickFormatter={(v) => v ? v.slice(5) : v} />
+                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#888" }} tickFormatter={(v) => (typeof v === 'string' && v.includes('-') ? v.slice(5) : v)} />
                   <YAxis yAxisId="left" tick={{ fontSize: 12 }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
                   <RechartTip />

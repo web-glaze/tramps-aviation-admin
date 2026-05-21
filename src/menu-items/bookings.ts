@@ -16,11 +16,15 @@ const BookingPages = {
       icon: BookOutlined,
       permission: PERMISSIONS.BOOKINGS_VIEW,
     },
+    // Flights — re-uses the All Bookings page with the `type=flight` query
+    // param pre-applied (same pattern as Series Bookings below). This shows
+    // flight BOOKINGS, not flight inventory. Inventory (series fares) is
+    // created/edited under "Tramps Fares".
     {
       id: 'flights',
       title: 'Flights',
       type: 'item',
-      url: '/flights',
+      url: '/bookings?type=flight',
       icon: CarOutlined,
       permission: PERMISSIONS.BOOKINGS_VIEW,
     },

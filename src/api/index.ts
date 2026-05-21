@@ -230,6 +230,45 @@ export const trampsAviationFaresApi = {
 };
 
 
+// ─── REFUNDS ──────────────────────────────────────────────────────────────────
+// The backend RefundController is mounted at the ROOT `/refunds` path (not
+// under `/admin`). The admin list/process/reject routes are guarded by
+// RolesGuard + @Permissions('bookings.refund'), so both `admin` and
+// `sub_admin` roles with that permission can use them.
+//   GET    /refunds                 → paginated { data, pagination }
+//   PATCH  /refunds/:refundId/process → approve & credit (wallet for B2B)
+//   PATCH  /refunds/:refundId/reject  → reject with a reason
+// NOTE: process/reject are keyed by the human-readable `refundId`
+// (e.g. "REF1234..."), NOT the MongoDB `_id`.
+export const refundsApi = {
+  getAll: (params?: any) => apiClient.get('/refunds', { params }),
+  process: (refundId: string, note?: string) =>
+    apiClient.patch(`/refunds/${refundId}/process`, { note }),
+  reject: (refundId: string, reason: string) =>
+    apiClient.patch(`/refunds/${refundId}/reject`, { reason }),
+};
+
+// ─── HOTELS (admin) ───────────────────────────────────────────────────────────
+// HotelsController exposes admin-only routes under `/hotels/admin/*`. There is
+// no dedicated hotel-management collection — these endpoints surface the
+// platform's hotel BOOKINGS plus aggregate stats. Response shape:
+//   { bookings: [...], pagination: {...}, stats: {...} }
+export const hotelsApi = {
+  getAll: (params?: any) => apiClient.get('/hotels/admin/all', { params }),
+  getTopHotels: (limit = 10) => apiClient.get('/hotels/admin/top-hotels', { params: { limit } }),
+};
+
+// ─── INSURANCE (admin) ────────────────────────────────────────────────────────
+// InsuranceController exposes admin-only routes under `/insurance/admin/*`.
+// `admin/all` lists issued insurance POLICIES + aggregate stats. Response:
+//   { data: [...], pagination: {...}, stats: {...} }
+// `retry` re-fires the Bajaj Allianz issuance call for policies stuck in the
+// INITIATED state.
+export const insuranceApi = {
+  getAll: (params?: any) => apiClient.get('/insurance/admin/all', { params }),
+  retry: (policyRef: string) => apiClient.post(`/insurance/admin/${policyRef}/retry`),
+};
+
 // ─── CMS ──────────────────────────────────────────────────────────────────────
 export const cmsApi = {
   getAll:   ()                        => apiClient.get('/pages/admin'),

@@ -23,7 +23,13 @@ import ReviewsPage from '../pages/reviews';
 import PagesManager from '../pages/cms';
 import EnquiriesPage from '../pages/enquiries';
 import SubAgentsPage from '../pages/subagents';
-import { FlightsPage, HotelsPage, InsurancePage, RefundsPage } from '../pages/misc';
+// These four were placeholder stubs in `pages/misc` — now full admin pages
+// each backed by a real backend endpoint (refunds, series-fare inventory,
+// hotel bookings, insurance policies).
+import RefundsPage from '../pages/refunds';
+import FlightsPage from '../pages/flights';
+import HotelsPage from '../pages/hotels';
+import InsurancePage from '../pages/insurance';
 import { Box, Typography, Button, CircularProgress } from '@mui/material';
 import useUserContext from '../hooks/useUser';
 import { PERMISSIONS } from '../constants/permissions';
@@ -72,10 +78,28 @@ function ProtectedRoute({
   return element;
 }
 
+// Login route guard — an already-authenticated admin hitting /login should
+// land straight on the dashboard instead of seeing the login form again.
+function LoginRoute() {
+  const { isAuthenticated, loading } = useUserContext();
+  // Wait for the initial session refresh before deciding (mirrors ProtectedRoute)
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Login />;
+}
+
 const router = createBrowserRouter([
   {
     path: '/login',
-    element: <Login />,
+    element: <LoginRoute />,
     errorElement: <PageError />,
   },
   {
@@ -98,7 +122,10 @@ const router = createBrowserRouter([
       { path: 'withdraw-approvals', element: <ProtectedRoute permission={PERMISSIONS.WALLETS_VIEW} element={<WithdrawApprovalsPage />} />, errorElement: <PageError /> },
       { path: 'tbo-settlements', element: <ProtectedRoute permission={PERMISSIONS.REPORTS_VIEW} element={<TboSettlementsPage />} />, errorElement: <PageError /> },
       { path: 'commission', element: <ProtectedRoute permission={PERMISSIONS.COMMISSION_VIEW} element={<CommissionPage />} />, errorElement: <PageError /> },
-      { path: 'refunds', element: <ProtectedRoute permission={PERMISSIONS.BOOKINGS_VIEW} element={<RefundsPage />} />, errorElement: <PageError /> },
+      /* The refund LIST endpoint (GET /refunds) itself requires the
+         `bookings.refund` permission server-side — gate the route on the
+         same permission so a user without it never lands on an empty page. */
+      { path: 'refunds', element: <ProtectedRoute permission={PERMISSIONS.BOOKINGS_REFUND} element={<RefundsPage />} />, errorElement: <PageError /> },
       { path: 'reports', element: <ProtectedRoute permission={PERMISSIONS.REPORTS_VIEW} element={<ReportsPage />} />, errorElement: <PageError /> },
       { path: 'promo', element: <ProtectedRoute permission={PERMISSIONS.PROMOS_VIEW} element={<PromoPage />} />, errorElement: <PageError /> },
       { path: 'notifications', element: <ProtectedRoute permission={PERMISSIONS.NOTIFICATIONS_VIEW} element={<NotificationsPage />} />, errorElement: <PageError /> },

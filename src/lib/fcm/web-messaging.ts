@@ -136,13 +136,17 @@ function handleForegroundMessage(payload: any) {
     case 'TOPUP_SUBMITTED':
     case 'TOPUP_APPROVED':
     case 'TOPUP_REJECTED':
-      window.dispatchEvent(new CustomEvent('admin:topup:update', { detail: data }));
+      // Event names MUST match what socket.ts dispatches and the pages
+      // listen for (admin:*:submitted / admin:agent:registered). Pre-fix
+      // these used `:update`, so FCM-delivered events never refreshed any
+      // admin list.
+      window.dispatchEvent(new CustomEvent('admin:topup:submitted', { detail: data }));
       break;
 
     case 'WITHDRAW_SUBMITTED':
     case 'WITHDRAW_APPROVED':
     case 'WITHDRAW_REJECTED':
-      window.dispatchEvent(new CustomEvent('admin:withdraw:update', { detail: data }));
+      window.dispatchEvent(new CustomEvent('admin:withdraw:submitted', { detail: data }));
       break;
 
     case 'BOOKING_CREATED':
@@ -155,11 +159,11 @@ function handleForegroundMessage(payload: any) {
     case 'KYC_SUBMITTED':
     case 'KYC_APPROVED':
     case 'KYC_REJECTED':
-      window.dispatchEvent(new CustomEvent('admin:kyc:update', { detail: data }));
+      window.dispatchEvent(new CustomEvent('admin:kyc:submitted', { detail: data }));
       break;
 
     case 'AGENT_REGISTERED':
-      window.dispatchEvent(new CustomEvent('admin:agent:update', { detail: data }));
+      window.dispatchEvent(new CustomEvent('admin:agent:registered', { detail: data }));
       break;
 
     case 'REVIEW_SUBMITTED':

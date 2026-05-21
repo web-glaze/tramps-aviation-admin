@@ -55,10 +55,11 @@ function StatCard({ icon, title, value, color }: any) {
 
 export default function TopupRequestsPage() {
   const { can } = useUserContext();
-  // Top-ups touch real money — reuse the existing wallet credit/debit
-  // permissions so only finance-ops can approve/reject.
-  const canApprove = can(PERMISSIONS.WALLETS_CREDIT);
-  const canReject  = can(PERMISSIONS.WALLETS_DEBIT) || canApprove;
+  // Top-ups touch real money — gate on the wallets.approve permission, which
+  // is what the backend approve/reject routes actually require (same as the
+  // withdraw-approvals queue).
+  const canApprove = can(PERMISSIONS.WALLETS_APPROVE) || can(PERMISSIONS.WALLETS_DEBIT);
+  const canReject  = canApprove;
 
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
