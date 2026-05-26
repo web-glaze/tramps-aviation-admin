@@ -218,6 +218,13 @@ export const trampsAviationFaresApi = {
   getSectors: () => apiClient.get('/admin/tramps-fares/sectors'),
   create: (data: any) => apiClient.post('/admin/tramps-fares', data),
   bulkCreate: (fares: any[]) => apiClient.post('/admin/tramps-fares/bulk', { fares }),
+  // ── Server-side template download ───────────────────────────────────────
+  // Returns a CSV/Excel file stream — we ask axios for an `arraybuffer`
+  // response so the caller can wrap it in a Blob and trigger a browser
+  // download via an object URL. The bulk-import full-page UI uses this
+  // when the admin clicks "Download CSV / Excel template".
+  getTemplate: (type: string = 'flight') =>
+    apiClient.get('/admin/tramps-fares/template', { params: { type }, responseType: 'arraybuffer' }),
   update: (id: string, data: any) => apiClient.put(`/admin/tramps-fares/${id}`, data),
   toggle: (id: string) => apiClient.patch(`/admin/tramps-fares/${id}/toggle`),
   delete: (id: string) => apiClient.delete(`/admin/tramps-fares/${id}`),
@@ -227,6 +234,20 @@ export const trampsAviationFaresApi = {
   clearPnrPool: (id: string) => apiClient.delete(`/admin/tramps-fares/${id}/pnr-pool`),
   // One-click demo seed — useful for fresh installs and demo accounts.
   seedDemo: () => apiClient.post('/admin/tramps-fares/seed-demo', {}),
+  // ─── SERIES FARE (TBO-style) ─────────────────────────────────────────────
+  // Creates a "series" of day-tickets: the backend expands the
+  // travelFrom→travelTo date range into one fare document per day. Returns
+  // { seriesGroupId, created, travelFrom, travelTo, fares: [...] }.
+  createSeries: (data: any) => apiClient.post('/admin/tramps-fares/series', data),
+  // Fetch every per-day fare doc belonging to a series group — returns
+  // { seriesGroupId, count, fares: [...] }. Drives the Edit Series Fare
+  // page's initial prefill.
+  getSeries:    (groupId: string) => apiClient.get(`/admin/tramps-fares/series/${groupId}`),
+  // Replace the whole series spec — same body shape as createSeries plus
+  // the per-day maps (pnrsByDate, farePerDay, ticketsPerDayByDate,
+  // disabledDates, disableBeforeHrs). The backend updates each per-day
+  // fare doc in the group accordingly.
+  updateSeries: (groupId: string, data: any) => apiClient.put(`/admin/tramps-fares/series/${groupId}`, data),
 };
 
 

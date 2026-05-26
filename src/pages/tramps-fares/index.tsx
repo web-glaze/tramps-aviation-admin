@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import {
   Box,
@@ -56,6 +57,8 @@ import {
   ExclamationCircleOutlined,
   MinusCircleOutlined,
   KeyOutlined,
+  DownOutlined,
+  RightOutlined,
 } from "@ant-design/icons";
 import { trampsAviationFaresApi } from "../../api";
 import MainCard from "../../components/MainCard";
@@ -762,9 +765,164 @@ const BULK_HINTS = {
   },
 };
 
+// ─── Series grouping (TBO-style list view) ──────────────────────────────────
+// Backend stores ONE doc per flight per date — so a 5-day series creates 5
+// rows. Showing 5 flat rows for every series flooded the list (10 series ×
+// 30 days = 300 rows). We now group by `seriesGroupId` on the FLIGHTS tab so
+// the list shows ONE parent row per series with a summary (route, date range,
+// total seats, day count) and an expand toggle that reveals the per-day rows
+// using the SAME render code as before.
+//
+// Important properties of this change:
+//   • Pure frontend — backend response shape, schema, search and booking are
+//     all untouched. The grouping happens after `records` is loaded.
+//   • Backward compatible — fares WITHOUT a `seriesGroupId` (legacy single
+//     fares added via the old dialog flow) keep rendering as flat rows.
+//   • Only the FLIGHTS tab groups; Hotels / Insurance tabs render unchanged.
+//   • Per-day actions (Edit / PNRs / Toggle / Delete) stay on each child
+//     row when expanded — they continue to work exactly as before because
+//     the child render reuses the original day-row code.
+type SeriesSummary = {
+  flightNumber: string;
+  airline: string;
+  origin: string;
+  destination: string;
+  sector: string;
+  minDate: string;
+  maxDate: string;
+  dayCount: number;
+  totalSeats: number;
+  totalPnrs: number;
+  activeCount: number;
+  allActive: boolean;
+  fare: number;
+  baseFare: number;
+  airlineTax: number;
+  baggage?: string;
+  cabinBaggage?: string;
+  tripType?: string;
+  stops?: number;
+  viaAirport?: string;
+  segments?: any[];
+  mode?: string;
+};
+type DisplayEntry =
+  | { kind: "single"; row: any }
+  | { kind: "series-parent"; groupId: string; rows: any[]; summary: SeriesSummary }
+  | { kind: "series-child"; row: any; groupId: string };
+
+function buildDisplayRows(
+  records: any[],
+  tabIdx: number,
+  expandedGroups: Set<string>,
+): DisplayEntry[] {
+  // Only group on the Flights tab. Hotels/Insurance: render flat as before.
+  if (tabIdx !== 0) {
+    return records.map((row) => ({ kind: "single" as const, row }));
+  }
+
+  const groupOrder: string[] = []; // preserves backend order of first appearance
+  const groups = new Map<string, any[]>();
+  const result: DisplayEntry[] = [];
+  // Walk once: bucket series rows by groupId, push singles inline so they
+  // keep their original position relative to other singles. Series groups
+  // are appended at the slot of their FIRST occurrence so the visual order
+  // roughly matches the un-grouped list.
+  const seenGroupSlot = new Set<string>();
+  for (const r of records) {
+    const gid =
+      r?.type === "flight" && r?.seriesGroupId ? String(r.seriesGroupId) : "";
+    if (gid) {
+      if (!groups.has(gid)) {
+        groups.set(gid, []);
+        groupOrder.push(gid);
+      }
+      groups.get(gid)!.push(r);
+      if (!seenGroupSlot.has(gid)) {
+        // Reserve a slot in `result` for this group's parent + children.
+        seenGroupSlot.add(gid);
+        result.push({ kind: "series-parent", groupId: gid, rows: [], summary: {} as any });
+      }
+    } else {
+      result.push({ kind: "single", row: r });
+    }
+  }
+
+  // Now fill in each parent row with its grouped rows + summary, and (if
+  // expanded) splice the child rows immediately after the parent.
+  for (let i = result.length - 1; i >= 0; i--) {
+    const entry = result[i];
+    if (entry.kind !== "series-parent") continue;
+    const rows = (groups.get(entry.groupId) || []).slice();
+    // Sort within group by departure date asc so the date range and expanded
+    // children read naturally.
+    rows.sort((a, b) =>
+      String(a.departureDate || a.travelDate || "").localeCompare(
+        String(b.departureDate || b.travelDate || ""),
+      ),
+    );
+    const first = rows[0] || {};
+    const dates = rows
+      .map((r) => r.departureDate || r.travelDate)
+      .filter(Boolean) as string[];
+    const minDate = dates[0] || "";
+    const maxDate = dates[dates.length - 1] || "";
+    const totalSeats = rows.reduce(
+      (s, r) => s + (Number(r.seatsAvailable) || 0),
+      0,
+    );
+    const totalPnrs = rows.reduce(
+      (s, r) => s + ((r.pnrPool || []).length || 0),
+      0,
+    );
+    const activeCount = rows.filter((r) => r.isActive).length;
+    const summary: SeriesSummary = {
+      flightNumber: first.flightNumber || "",
+      airline: first.airline || "",
+      origin: first.origin || "",
+      destination: first.destination || "",
+      sector: first.sector || `${first.origin || ""}-${first.destination || ""}`,
+      minDate,
+      maxDate,
+      dayCount: rows.length,
+      totalSeats,
+      totalPnrs,
+      activeCount,
+      allActive: rows.length > 0 && activeCount === rows.length,
+      fare: Number(first.fare) || 0,
+      baseFare: Number(first.baseFare) || 0,
+      airlineTax: Number(first.airlineTax) || 0,
+      baggage: first.baggage,
+      cabinBaggage: first.cabinBaggage,
+      tripType: first.tripType,
+      stops: first.stops,
+      viaAirport: first.viaAirport,
+      segments: first.segments,
+      mode: first.mode,
+    };
+    (entry as any).rows = rows;
+    (entry as any).summary = summary;
+
+    if (expandedGroups.has(entry.groupId)) {
+      // Insert child rows immediately after the parent slot.
+      const children: DisplayEntry[] = rows.map((row) => ({
+        kind: "series-child" as const,
+        row,
+        groupId: entry.groupId,
+      }));
+      result.splice(i + 1, 0, ...children);
+    }
+  }
+
+  return result;
+}
+
 export default function TrampsTicketsPage() {
   const { can } = useUserContext();
   const canEdit = can(PERMISSIONS.CONTENT_FARES_EDIT);
+  // Used by the "+ Add Series Fare" button to open the full-page TBO-style
+  // series-fare form. The single-fare dialog below is left untouched.
+  const navigate = useNavigate();
 
   const [tabIdx, setTabIdx] = useState(0);
   const [records, setRecords] = useState<any[]>([]);
@@ -819,6 +977,28 @@ export default function TrampsTicketsPage() {
   // share a single state pair across all rows.
   const [actionMenuRow, setActionMenuRow] = useState<any>(null);
   const [actionMenuAnchor, setActionMenuAnchor] = useState<null | HTMLElement>(null);
+  // ── Series-fare grouping (Flights tab only) ─────────────────────────────
+  // Tracks which series groups (by seriesGroupId) are currently expanded so
+  // their per-day child rows are visible underneath the parent row. The
+  // parent row's chevron toggles entries in this set. Default: collapsed.
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+  // Expand / collapse ALL groups at once — saves repeated clicks when the
+  // admin wants a flat day-by-day audit view temporarily.
+  const expandAllGroups = () => {
+    const ids = records
+      .filter((r: any) => r?.type === "flight" && r?.seriesGroupId)
+      .map((r: any) => String(r.seriesGroupId));
+    setExpandedGroups(new Set(ids));
+  };
+  const collapseAllGroups = () => setExpandedGroups(new Set());
   const openActionMenu = (row: any, el: HTMLElement) => {
     setActionMenuRow(row);
     setActionMenuAnchor(el);
@@ -1351,29 +1531,38 @@ export default function TrampsTicketsPage() {
                 <ReloadOutlined />
               </IconButton>
             </Tooltip>
-            {canEdit && (
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<ImportOutlined />}
-                onClick={() => {
-                  setBulkText("");
-                  setBulkPreview([]);
-                  setBulkErrors([]);
-                  setBulkOpen(true);
-                }}
-              >
-                Bulk Import
-              </Button>
-            )}
-            {canEdit && (
+            {/* "+ Add Series Fare" is now the ONLY add entry point on this
+                page — the standalone "+ Add flight" and "+ Bulk Import"
+                buttons were removed because every new flight inventory
+                addition goes through the TBO-style series form. The
+                underlying Add/Edit and Bulk Import dialog COMPONENTS are
+                still mounted below so legacy single-fare rows (no
+                seriesGroupId) can be edited via the row-action menu —
+                only the buttons that OPEN them on click are gone. */}
+            {canEdit && tabIdx === 0 && (
               <Button
                 variant="contained"
                 size="small"
                 startIcon={<PlusOutlined />}
-                onClick={openAdd}
+                onClick={() => navigate("/tramps-fares/add-series")}
               >
-                Add {type}
+                Add Series Fare
+              </Button>
+            )}
+            {/* ── Bulk Import entry point (May 2026) ─────────────────────
+                The legacy `setBulkOpen` dialog is still mounted below for
+                back-compat but is no longer reachable from the toolbar.
+                The new full-page workflow at /tramps-fares/bulk-import is
+                the primary entry point — same MainCard / sticky action bar
+                pattern as the Add Series Fare page. */}
+            {canEdit && tabIdx === 0 && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ImportOutlined />}
+                onClick={() => navigate("/tramps-fares/bulk-import")}
+              >
+                Bulk Import
               </Button>
             )}
           </Stack>
@@ -1445,6 +1634,47 @@ export default function TrampsTicketsPage() {
             />
           </Box>
         )}
+
+        {/* ── Series expand/collapse helper (Flights tab only) ───────────
+              Shows ONLY when at least one series group exists on the page.
+              Lets the admin flip the whole list between compact (one row
+              per series) and expanded (every day-fare visible) views with
+              a single click instead of toggling each chevron. */}
+        {tabIdx === 0 &&
+          records.some(
+            (r: any) => r?.type === "flight" && r?.seriesGroupId,
+          ) && (
+            <Box
+              sx={{
+                mb: 1.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                flexWrap: "wrap",
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                Series fares are grouped — click row chevron to see each day.
+              </Typography>
+              <Box sx={{ flex: 1 }} />
+              <Button
+                size="small"
+                variant="text"
+                startIcon={<DownOutlined style={{ fontSize: 11 }} />}
+                onClick={expandAllGroups}
+              >
+                Expand All
+              </Button>
+              <Button
+                size="small"
+                variant="text"
+                startIcon={<RightOutlined style={{ fontSize: 11 }} />}
+                onClick={collapseAllGroups}
+              >
+                Collapse All
+              </Button>
+            </Box>
+          )}
 
         {/* ── Bulk-action toolbar — only renders when at least one row is
               checked. Bulk Deactivate fans out toggleActive in parallel;
@@ -1566,7 +1796,10 @@ export default function TrampsTicketsPage() {
                     <TableCell>Benefits</TableCell>
                   </>
                 )}
-                <TableCell>Mode</TableCell>
+                {/* MODE column removed (May 2026) — dev/prod toggle was a
+                    developer-only knob; every fare now uses `mode: "both"`
+                    internally. Header / body / parent / colspan all drop
+                    one cell so the row stays balanced. */}
                 <TableCell>Status</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
@@ -1582,7 +1815,7 @@ export default function TrampsTicketsPage() {
                           Stops + Mode + Status + Actions). Hotels/Insurance
                           keep 11. Skeleton count is informational only —
                           colSpan only matters for the empty-state row. */}
-                      {Array(tabIdx === 0 ? 13 : 11)
+                      {Array(tabIdx === 0 ? 12 : 10)
                         .fill(0)
                         .map((_, j) => (
                           <TableCell key={j}>
@@ -1594,7 +1827,7 @@ export default function TrampsTicketsPage() {
               ) : records.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={tabIdx === 0 ? 13 : 11}
+                    colSpan={tabIdx === 0 ? 12 : 10}
                     align="center"
                     sx={{ py: 6 }}
                   >
@@ -1604,11 +1837,223 @@ export default function TrampsTicketsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                records.map((r, i) => (
+                // ── TBO-style series grouping (Flights tab only) ─────────
+                // `buildDisplayRows` collapses fares that share a
+                // `seriesGroupId` into ONE parent summary row + (optional,
+                // when the user expands) per-day child rows. Hotels and
+                // Insurance tabs flow through unchanged as single rows.
+                buildDisplayRows(records, tabIdx, expandedGroups).map((entry, idx) => {
+                  // ─── Series parent: compact one-row summary of the group
+                  if (entry.kind === "series-parent") {
+                    const s = entry.summary;
+                    const isOpen = expandedGroups.has(entry.groupId);
+                    const childIds = entry.rows.map((rr: any) => String(rr._id));
+                    const childSelectedCount = childIds.filter((id: string) =>
+                      selectedIds.has(id),
+                    ).length;
+                    const allChildSelected =
+                      childIds.length > 0 && childSelectedCount === childIds.length;
+                    const someChildSelected =
+                      childSelectedCount > 0 && !allChildSelected;
+                    return (
+                      <TableRow
+                        key={"parent-" + entry.groupId}
+                        hover
+                        sx={{
+                          bgcolor: "primary.lighter",
+                          // Per-row border lightened (May 2026) — the old
+                          // 2px primary.main top border + 1px primary.light
+                          // bottom border made the gap between two series
+                          // groups feel heavy. Now uses a single 1px hairline
+                          // in `divider` colour so groups are still visually
+                          // separated without dominating the row.
+                          "& > td": {
+                            borderBottom: "1px solid",
+                            borderBottomColor: "divider",
+                          },
+                          cursor: "pointer",
+                          borderTop: "1px solid",
+                          borderTopColor: "divider",
+                        }}
+                        onClick={() => toggleGroup(entry.groupId)}
+                      >
+                        <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            size="small"
+                            color="primary"
+                            checked={allChildSelected}
+                            indeterminate={someChildSelected}
+                            onChange={(e) => {
+                              setSelectedIds((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) {
+                                  for (const id of childIds) next.add(id);
+                                } else {
+                                  for (const id of childIds) next.delete(id);
+                                }
+                                return next;
+                              });
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ width: 32 }}>
+                          <Tooltip title={isOpen ? "Hide days" : "Show days"}>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleGroup(entry.groupId);
+                              }}
+                              sx={{ p: 0.5 }}
+                            >
+                              {isOpen ? (
+                                <DownOutlined style={{ fontSize: 11 }} />
+                              ) : (
+                                <RightOutlined style={{ fontSize: 11 }} />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={700} color="primary">
+                            {s.flightNumber}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {s.airline}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={s.sector}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        {/* SCHEDULE — date range "26 May 26 → 30 May 26" */}
+                        <TableCell sx={{ minWidth: 160, whiteSpace: "nowrap" }}>
+                          <Typography
+                            variant="caption"
+                            sx={{ fontSize: 11, display: "block" }}
+                            color="text.secondary"
+                          >
+                            {fmtCompactDate(s.minDate)} → {fmtCompactDate(s.maxDate)}
+                          </Typography>
+                          <Chip
+                            label={`Series · ${s.dayCount} day${s.dayCount !== 1 ? "s" : ""}`}
+                            size="small"
+                            color="secondary"
+                            sx={{ mt: 0.5, height: 18, fontSize: 10 }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
+                          <Chip
+                            label={s.tripType || "OneWay"}
+                            size="small"
+                            color={s.tripType === "RoundTrip" ? "secondary" : "default"}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={700} color="success.dark">
+                            ₹{Number(s.fare).toLocaleString()}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            per pax
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
+                          <Typography variant="caption">{s.baggage || "—"}</Typography>
+                          {s.cabinBaggage && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              {s.cabinBaggage} cabin
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={700}>
+                            {s.totalSeats}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            total
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+                          {(s.stops || 0) > 0 ? (
+                            <Chip
+                              label={`${s.stops} stop`}
+                              size="small"
+                              color="warning"
+                              variant="outlined"
+                            />
+                          ) : (
+                            <Chip
+                              label="Non-stop"
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                            />
+                          )}
+                          {s.viaAirport && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              via {s.viaAirport}
+                            </Typography>
+                          )}
+                        </TableCell>
+                        {/* MODE column removed — was a dev-only knob */}
+                        <TableCell>
+                          <Chip
+                            label={
+                              s.allActive
+                                ? "All Active"
+                                : s.activeCount === 0
+                                  ? "All Off"
+                                  : `${s.activeCount}/${s.dayCount} On`
+                            }
+                            size="small"
+                            color={
+                              s.allActive
+                                ? "success"
+                                : s.activeCount === 0
+                                  ? "default"
+                                  : "warning"
+                            }
+                          />
+                        </TableCell>
+                        <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                          {canEdit && (
+                            <Tooltip title="Edit whole series">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() =>
+                                  navigate(`/tramps-fares/edit-series/${entry.groupId}`)
+                                }
+                              >
+                                <EditOutlined style={{ fontSize: 14 }} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  // ─── Single fare OR expanded series-child: original day-row
+                  const r = entry.row;
+                  const i = idx;
+                  const isChild = entry.kind === "series-child";
+                  return (
                   <TableRow
-                    key={r._id}
+                    key={r._id + (isChild ? "-c" : "")}
                     hover
                     selected={selectedIds.has(r._id)}
+                    sx={
+                      isChild
+                        ? {
+                            bgcolor: "action.hover",
+                            "& > td:first-of-type": { pl: 3 },
+                          }
+                        : undefined
+                    }
                   >
                     <TableCell padding="checkbox">
                       <Checkbox
@@ -1618,7 +2063,19 @@ export default function TrampsTicketsPage() {
                         onChange={() => toggleSelect(r._id)}
                       />
                     </TableCell>
-                    <TableCell>{(page - 1) * 20 + i + 1}</TableCell>
+                    <TableCell>
+                      {isChild ? (
+                        <Typography
+                          variant="caption"
+                          color="text.disabled"
+                          sx={{ fontSize: 14 }}
+                        >
+                          ↳
+                        </Typography>
+                      ) : (
+                        (page - 1) * 20 + i + 1
+                      )}
+                    </TableCell>
 
                     {r.type === "flight" && (
                       <>
@@ -1917,19 +2374,8 @@ export default function TrampsTicketsPage() {
                       </>
                     )}
 
-                    <TableCell>
-                      <Chip
-                        label={r.mode || "both"}
-                        size="small"
-                        color={
-                          r.mode === "production"
-                            ? "error"
-                            : r.mode === "development"
-                              ? "warning"
-                              : "info"
-                        }
-                      />
-                    </TableCell>
+                    {/* MODE chip removed — was a dev-only knob, every fare
+                        now uses `mode: "both"` internally. */}
                     <TableCell>
                       <Chip
                         label={r.isActive ? "Active" : "Off"}
@@ -1970,7 +2416,8 @@ export default function TrampsTicketsPage() {
                       )}
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -1990,7 +2437,20 @@ export default function TrampsTicketsPage() {
             onClick={() => {
               const row = actionMenuRow;
               closeActionMenu();
-              if (row) openEdit(row);
+              if (!row) return;
+              // ── Series-fare row? Open the full-page edit form ───────────
+              // Rows that were created via the "Add Series Fare" page carry
+              // a `seriesGroupId` that links every per-day doc in the
+              // series. Editing one of those should open the dedicated
+              // full-page form so the admin can manage the whole group
+              // (Day Allocation Inventory etc), not the legacy single-fare
+              // dialog. Legacy rows without a seriesGroupId keep the
+              // dialog flow below.
+              if (row.seriesGroupId) {
+                navigate(`/tramps-fares/edit-series/${row.seriesGroupId}`);
+                return;
+              }
+              openEdit(row);
             }}
           >
             <ListItemIcon>

@@ -18,6 +18,8 @@ import PromoPage from '../pages/promo';
 import NotificationsPage from '../pages/notifications';
 import SettingsPage from '../pages/settings';
 import TrampsAviationFaresPage from '../pages/tramps-fares';
+import AddSeriesFarePage from '../pages/tramps-fares/AddSeriesFare';
+import BulkImportSeriesPage from '../pages/tramps-fares/BulkImportSeries';
 import PopularContentPage from '../pages/popular-content';
 import ReviewsPage from '../pages/reviews';
 import PagesManager from '../pages/cms';
@@ -132,6 +134,22 @@ const router = createBrowserRouter([
       { path: 'settings', element: <ProtectedRoute permission={PERMISSIONS.SETTINGS_VIEW} element={<SettingsPage />} />, errorElement: <PageError /> },
       { path: 'admin-users', element: <ProtectedRoute permission={PERMISSIONS.ADMIN_USERS_VIEW} element={<AdminUsersPage />} />, errorElement: <PageError /> },
       { path: 'tramps-fares', element: <ProtectedRoute permission={PERMISSIONS.CONTENT_FARES_VIEW} element={<TrampsAviationFaresPage />} />, errorElement: <PageError /> },
+      /* TBO-style full-page "Add Series Fare" form — expands a date range into
+         one day-ticket per day. Gated on the same fares-view permission as the
+         /tramps-fares listing it links from. */
+      { path: 'tramps-fares/add-series', element: <ProtectedRoute permission={PERMISSIONS.CONTENT_FARES_VIEW} element={<AddSeriesFarePage />} />, errorElement: <PageError /> },
+      /* Edit mode for series fares — same page component as add-series, but
+         when a :groupId is present in the URL the form loads via GET
+         /admin/tramps-fares/series/:groupId and saves via PUT. Reached from
+         the row-action menu's "Edit" item on the Flights tab when the row
+         has a seriesGroupId attached. */
+      { path: 'tramps-fares/edit-series/:groupId', element: <ProtectedRoute permission={PERMISSIONS.CONTENT_FARES_VIEW} element={<AddSeriesFarePage />} />, errorElement: <PageError /> },
+      /* TBO-style full-page "Bulk Import" workflow — download a CSV/Excel
+         template, upload a filled file, preview parsed rows, and submit to
+         POST /admin/tramps-fares/bulk. Replaces the legacy dialog flow as
+         the primary entry point (the dialog code is still mounted for
+         back-compat but is no longer reachable from the toolbar). */
+      { path: 'tramps-fares/bulk-import', element: <ProtectedRoute permission={PERMISSIONS.CONTENT_FARES_VIEW} element={<BulkImportSeriesPage />} />, errorElement: <PageError /> },
       { path: 'popular-content', element: <ProtectedRoute permission={PERMISSIONS.CONTENT_POPULAR_VIEW} element={<PopularContentPage />} />, errorElement: <PageError /> },
       { path: 'reviews', element: <ProtectedRoute permission={PERMISSIONS.CONTENT_REVIEWS_VIEW} element={<ReviewsPage />} />, errorElement: <PageError /> },
       { path: 'pages', element: <ProtectedRoute permission={PERMISSIONS.CONTENT_PAGES_VIEW} element={<PagesManager />} />, errorElement: <PageError /> },
