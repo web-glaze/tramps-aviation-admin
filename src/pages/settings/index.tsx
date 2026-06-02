@@ -71,6 +71,33 @@ const defaultSettings = {
     upiId?: string;
     isActive?: boolean;
   }>,
+  // ── E-Ticket branding (printed / emailed PDF e-ticket) ──────────────────────
+  // The GLOBAL default brand used on every PDF e-ticket. Defaults reproduce
+  // the Tramps Aviation artwork. Agents with active white-label branding
+  // override these on their own tickets. Saved as a nested object via
+  // settingsApi.update({ ticketBranding }).
+  ticketBranding: {
+    brandName: 'TRAMPS AVIATION',
+    companyName: 'TRAMPS AVIATION SERVICES PRIVATE LIMITED',
+    tagline: 'YOUR JOURNEY, OUR PRIORITY.',
+    logoUrl: '',
+    primaryColor: '#1f5fbf',
+    accentColor: '#f15a29',
+    addressLine1: 'Shop No 112 A Star Avenue Mansimble Bhawarna',
+    addressLine2: 'Man Simble Palampur Kangra',
+    addressLine3: 'Palampur',
+    contactNo: '9115500112',
+    checkedBaggage: '30KG',
+    cabinBaggage: '7KG',
+    importantInfo: [
+      'Please arrive at the airport at least 4 hours before departure for international flights.',
+      'Check-in opens 60 to 75 minutes before departure.',
+      'Carry a valid passport and necessary travel documents.',
+      'Series tickets are non-refundable / non-changeable.',
+      "For more information, visit the airline's website.",
+    ],
+    footerNote: 'FOR CHOOSING TRAMPS AVIATION',
+  } as Record<string, any>,
 };
 
 const defaultPricing = {
@@ -106,6 +133,9 @@ export default function SettingsPage() {
         commissionEnabledProducts: Array.isArray(d.commissionEnabledProducts)
           ? d.commissionEnabledProducts
           : s.commissionEnabledProducts,
+        // Deep-merge ticketBranding so any field missing on an older Settings
+        // doc keeps its screenshot default instead of going blank.
+        ticketBranding: { ...s.ticketBranding, ...(d.ticketBranding || {}) },
       }));
       // NOTE: seriesMarkupPercent was previously loaded here — removed
       // because series fares no longer support markup.
@@ -119,6 +149,63 @@ export default function SettingsPage() {
   }, []);
 
   const set = (key: string, val: any) => setSettings((s: any) => ({ ...s, [key]: val }));
+
+  // ── E-Ticket branding helpers ─────────────────────────────────────────────
+  const [logoUploading, setLogoUploading] = useState(false);
+  const setTb = (key: string, val: any) =>
+    setSettings((s: any) => ({ ...s, ticketBranding: { ...s.ticketBranding, [key]: val } }));
+
+  const handleTicketLogoUpload = async (file?: File | null) => {
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const res = await settingsApi.uploadImage(file);
+      const url = res.data?.data?.url || res.data?.url;
+      if (url) {
+        setTb('logoUrl', url);
+        setSnack({ open: true, msg: '✅ Logo uploaded', sev: 'success' });
+      } else {
+        setSnack({ open: true, msg: '❌ Upload returned no URL', sev: 'error' });
+      }
+    } catch {
+      setSnack({ open: true, msg: '❌ Logo upload failed', sev: 'error' });
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const buildTicketBrandingPayload = () => {
+    const tb = settings.ticketBranding || {};
+    return {
+      ...tb,
+      // Drop blank lines from the important-info textarea before saving.
+      importantInfo: (Array.isArray(tb.importantInfo) ? tb.importantInfo : [])
+        .map((l: string) => (l || '').trim())
+        .filter(Boolean),
+    };
+  };
+
+  const handleSaveTicketBranding = async () => {
+    try {
+      await settingsApi.update({ ticketBranding: buildTicketBrandingPayload() });
+      setSnack({ open: true, msg: '✅ E-ticket branding saved!', sev: 'success' });
+    } catch {
+      setSnack({ open: true, msg: '❌ Failed to save e-ticket branding', sev: 'error' });
+    }
+  };
+
+  const handlePreviewTicket = async () => {
+    try {
+      // Save first so the server-rendered preview reflects current edits.
+      await settingsApi.update({ ticketBranding: buildTicketBrandingPayload() });
+      const res = await settingsApi.previewTicket();
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setSnack({ open: true, msg: '❌ Failed to generate preview', sev: 'error' });
+    }
+  };
 
   // ── Feature-flag helpers ─────────────────────────────────────────────────
   // The flag arrays use add/remove rather than a flat boolean per product so
@@ -175,6 +262,7 @@ export default function SettingsPage() {
 
   const s = settings;
   const p = pricing;
+  const tb = settings.ticketBranding || {};
   const previewId = `${s.agentIdPrefix || 'TAHP'}${'1'.padStart(s.agentIdDigits || 5, '0')}`;
 
   return (
@@ -670,6 +758,139 @@ export default function SettingsPage() {
             </Stack>
           </MainCard>
 
+        </Grid>
+
+        {/* ── E-TICKET BRANDING (full width) ──────────────────────────────────
+            Controls the GLOBAL default brand printed on every PDF e-ticket
+            (logo, company name, address, colours, baggage, important info).
+            Defaults reproduce the supplied artwork. Agents with active
+            white-label branding override these on their own tickets. */}
+        <Grid size={12}>
+          <MainCard title="🎫 E-Ticket Branding (Print / Email PDF)" sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              This is the default design for the printed &amp; emailed PDF e-ticket.
+              Edit the logo, company details, colours and notes, then{' '}
+              <strong>Preview</strong> to see exactly how the ticket will look.
+              Handles one-way, round-trip and multi-city automatically.
+            </Typography>
+
+            <Grid container spacing={3}>
+              {/* Left: identity + colours + logo */}
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Grid container spacing={2.5}>
+                  <Grid size={12}>
+                    <TextField fullWidth label="Brand Name (header)" placeholder="TRAMPS AVIATION"
+                      value={tb.brandName || ''} onChange={e => setTb('brandName', e.target.value)} />
+                  </Grid>
+                  <Grid size={12}>
+                    <TextField fullWidth label="Company Legal Name" placeholder="TRAMPS AVIATION SERVICES PRIVATE LIMITED"
+                      value={tb.companyName || ''} onChange={e => setTb('companyName', e.target.value)} />
+                  </Grid>
+                  <Grid size={12}>
+                    <TextField fullWidth label="Tagline" placeholder="YOUR JOURNEY, OUR PRIORITY."
+                      value={tb.tagline || ''} onChange={e => setTb('tagline', e.target.value)} />
+                  </Grid>
+
+                  <Grid size={12}><Divider><Typography variant="caption" color="text.secondary">Logo</Typography></Divider></Grid>
+                  <Grid size={12}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Box sx={{
+                        width: 70, height: 70, borderRadius: 1.5, border: '1px solid', borderColor: 'divider',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', bgcolor: 'grey.50',
+                      }}>
+                        {tb.logoUrl
+                          ? <img src={tb.logoUrl} alt="logo" style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                          : <Typography variant="caption" color="text.secondary">No logo</Typography>}
+                      </Box>
+                      <Stack spacing={1}>
+                        <Button variant="outlined" component="label" size="small" disabled={!canEdit || logoUploading}>
+                          {logoUploading ? 'Uploading…' : 'Upload Logo'}
+                          <input hidden type="file" accept="image/png,image/jpeg"
+                            onChange={e => handleTicketLogoUpload(e.target.files?.[0])} />
+                        </Button>
+                        {tb.logoUrl && (
+                          <Button size="small" color="error" disabled={!canEdit}
+                            onClick={() => setTb('logoUrl', '')}>Remove logo</Button>
+                        )}
+                        <Typography variant="caption" color="text.secondary">
+                          PNG / JPG. Leave empty to use the built-in “TA” wordmark.
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Grid>
+                  <Grid size={12}>
+                    <TextField fullWidth label="Logo URL (optional)" placeholder="https://…/logo.png"
+                      value={tb.logoUrl || ''} onChange={e => setTb('logoUrl', e.target.value)} />
+                  </Grid>
+
+                  <Grid size={12}><Divider><Typography variant="caption" color="text.secondary">Colours</Typography></Divider></Grid>
+                  <Grid size={6}>
+                    <TextField fullWidth type="color" label="Primary (blue)" InputLabelProps={{ shrink: true }}
+                      value={tb.primaryColor || '#1f5fbf'} onChange={e => setTb('primaryColor', e.target.value)} />
+                  </Grid>
+                  <Grid size={6}>
+                    <TextField fullWidth type="color" label="Accent (orange)" InputLabelProps={{ shrink: true }}
+                      value={tb.accentColor || '#f15a29'} onChange={e => setTb('accentColor', e.target.value)} />
+                  </Grid>
+                </Grid>
+              </Grid>
+
+              {/* Right: address + contact + baggage + important info */}
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Grid container spacing={2.5}>
+                  <Grid size={12}>
+                    <TextField fullWidth label="Address Line 1"
+                      value={tb.addressLine1 || ''} onChange={e => setTb('addressLine1', e.target.value)} />
+                  </Grid>
+                  <Grid size={12}>
+                    <TextField fullWidth label="Address Line 2"
+                      value={tb.addressLine2 || ''} onChange={e => setTb('addressLine2', e.target.value)} />
+                  </Grid>
+                  <Grid size={6}>
+                    <TextField fullWidth label="Address Line 3"
+                      value={tb.addressLine3 || ''} onChange={e => setTb('addressLine3', e.target.value)} />
+                  </Grid>
+                  <Grid size={6}>
+                    <TextField fullWidth label="Contact No."
+                      value={tb.contactNo || ''} onChange={e => setTb('contactNo', e.target.value)} />
+                  </Grid>
+
+                  <Grid size={12}><Divider><Typography variant="caption" color="text.secondary">Default Baggage</Typography></Divider></Grid>
+                  <Grid size={6}>
+                    <TextField fullWidth label="Checked Baggage" placeholder="30KG"
+                      value={tb.checkedBaggage || ''} onChange={e => setTb('checkedBaggage', e.target.value)} />
+                  </Grid>
+                  <Grid size={6}>
+                    <TextField fullWidth label="Cabin Baggage" placeholder="7KG"
+                      value={tb.cabinBaggage || ''} onChange={e => setTb('cabinBaggage', e.target.value)} />
+                  </Grid>
+
+                  <Grid size={12}><Divider><Typography variant="caption" color="text.secondary">Important Information (one line each)</Typography></Divider></Grid>
+                  <Grid size={12}>
+                    <TextField fullWidth multiline minRows={5} label="Important Information"
+                      value={(Array.isArray(tb.importantInfo) ? tb.importantInfo : []).join('\n')}
+                      onChange={e => setTb('importantInfo', e.target.value.split('\n'))}
+                      helperText="Each line becomes a bullet on the ticket." />
+                  </Grid>
+                  <Grid size={12}>
+                    <TextField fullWidth label="Footer Note" placeholder="FOR CHOOSING TRAMPS AVIATION"
+                      value={tb.footerNote || ''} onChange={e => setTb('footerNote', e.target.value)} />
+                  </Grid>
+                </Grid>
+              </Grid>
+
+              <Grid size={12}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <Button variant="contained" startIcon={<SaveOutlined />} onClick={handleSaveTicketBranding} disabled={!canEdit}>
+                    Save E-Ticket Branding
+                  </Button>
+                  <Button variant="outlined" onClick={handlePreviewTicket} disabled={!canEdit}>
+                    👁️ Preview Ticket (PDF)
+                  </Button>
+                </Stack>
+              </Grid>
+            </Grid>
+          </MainCard>
         </Grid>
 
       </Grid>

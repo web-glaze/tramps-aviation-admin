@@ -199,6 +199,18 @@ export const settingsApi = {
   update: (data: any) => apiClient.put('/admin/settings', data),
   getPricingRules: () => apiClient.get('/admin/pricing'),
   updatePricingRules: (data: any) => apiClient.put('/admin/pricing', data),
+  // Renders a sample branded e-ticket PDF from the saved ticketBranding —
+  // used by the "Preview" button on the E-Ticket Branding card. Returns a Blob.
+  previewTicket: () =>
+    apiClient.get('/admin/ticket-preview', { responseType: 'blob' }),
+  // Upload an image (e.g. the ticket logo) → returns { data: { url, ... } }.
+  uploadImage: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return apiClient.post('/upload/image', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 // ─── POPULAR ROUTES (dedicated, sub-admin friendly) ──────────────────────────
