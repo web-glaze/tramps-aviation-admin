@@ -261,9 +261,40 @@ export default function KycPage() {
     k ? k.agencyName || k.agentId?.agencyName || "—" : "—";
   const needsReview = (k: any) => PENDING_STATUSES.includes(k?.status);
 
-  const openView = (k: any) => {
+  const openView = async (k: any) => {
     setSelected(k);
     setViewOpen(true);
+    // The list row only carries lightweight doc info (type/status/s3Key) with
+    // NO preview URL — so the modal can't show the photos. Fetch the single
+    // agent's KYC detail, which mints fresh signed S3 URLs for each document,
+    // and merge them in. Falls back to the list data on any error.
+    const agentId = k?.agentId?._id || k?.agentId;
+    if (!agentId) return;
+    try {
+      const res = await kycApi.getByAgent(agentId);
+      const detail = res.data?.data || res.data;
+      if (detail) {
+        setSelected((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                uploadedDocuments:
+                  Array.isArray(detail.uploadedDocuments) && detail.uploadedDocuments.length
+                    ? detail.uploadedDocuments
+                    : prev.uploadedDocuments,
+                panDocument: detail.panDocument ?? prev.panDocument,
+                aadharFront: detail.aadharFront ?? prev.aadharFront,
+                aadharBack: detail.aadharBack ?? prev.aadharBack,
+                gstDocument: detail.gstDocument ?? prev.gstDocument,
+                businessProof: detail.businessProof ?? prev.businessProof,
+                cancelledCheque: detail.cancelledCheque ?? prev.cancelledCheque,
+              }
+            : prev,
+        );
+      }
+    } catch {
+      /* keep the list-row data if the detail fetch fails */
+    }
   };
 
   return (

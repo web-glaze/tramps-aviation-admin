@@ -97,6 +97,9 @@ export const bookingsApi = {
 // ─── KYC ─────────────────────────────────────────────────────────────────────
 export const kycApi = {
   getAll: (params?: any) => apiClient.get('/admin/kyc', { params }),
+  // Single agent's KYC WITH hydrated (signed) document URLs — used by the
+  // review modal so the uploaded photos actually preview.
+  getByAgent: (agentId: string) => apiClient.get(`/kyc/admin/by-agent/${agentId}`),
   approve: (id: string) => apiClient.patch(`/admin/kyc/${id}/approve`),
   reject: (id: string, reason: string) => apiClient.patch(`/admin/kyc/${id}/reject`, { reason }),
 };
