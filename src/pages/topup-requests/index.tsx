@@ -25,6 +25,16 @@ const STATUS_CHIP: Record<string, { color: any; label: string }> = {
   rejected: { color: 'error',   label: 'Rejected' },
 };
 
+// Coerce a stat value to a plain number. Accepts a number, or a
+// { count, amount } object (the backend's breakdown shape). Returns undefined
+// when there's nothing usable so the card shows "—" instead of crashing.
+function statNum(v: any): number | undefined {
+  if (v == null) return undefined;
+  const n = typeof v === 'object' ? (v.count ?? v.amount) : v;
+  const num = Number(n);
+  return Number.isFinite(num) ? num : undefined;
+}
+
 function StatCard({ icon, title, value, color }: any) {
   return (
     <Card sx={{ height: '100%', borderLeft: `4px solid ${color}` }}>
@@ -45,7 +55,7 @@ function StatCard({ icon, title, value, color }: any) {
             {title}
           </Typography>
           <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.1 }}>
-            {value ?? '—'}
+            {value == null || typeof value === 'object' ? '—' : String(value)}
           </Typography>
         </Box>
       </CardContent>
@@ -178,16 +188,18 @@ export default function TopupRequestsPage() {
         Approving credits the agent's wallet automatically.
       </Typography>
 
-      {/* Stats */}
+      {/* Stats — backend returns { pendingNow, breakdown: { pending_admin,
+          approved, rejected }: { count, amount } }. Read those fields and
+          coerce to a number so StatCard always gets a primitive. */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <StatCard icon={<ClockCircleOutlined />} title="Pending"  value={stats?.pending}  color="#ed6c02" />
+          <StatCard icon={<ClockCircleOutlined />} title="Pending"  value={statNum(stats?.pendingNow ?? stats?.breakdown?.pending_admin?.count ?? stats?.pending)} color="#ed6c02" />
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <StatCard icon={<CheckCircleOutlined />} title="Approved" value={stats?.approved} color="#2e7d32" />
+          <StatCard icon={<CheckCircleOutlined />} title="Approved" value={statNum(stats?.breakdown?.approved?.count ?? stats?.approved)} color="#2e7d32" />
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <StatCard icon={<StopOutlined />}        title="Rejected" value={stats?.rejected} color="#c62828" />
+          <StatCard icon={<StopOutlined />}        title="Rejected" value={statNum(stats?.breakdown?.rejected?.count ?? stats?.rejected)} color="#c62828" />
         </Grid>
       </Grid>
 
@@ -246,7 +258,7 @@ export default function TopupRequestsPage() {
                 <TableRow><TableCell colSpan={8} align="center" sx={{ py: 5, color: 'text.secondary' }}>No top-up requests found</TableCell></TableRow>
               ) : (
                 rows.map((r: any) => {
-                  const st = STATUS_CHIP[r.status] || { color: 'default', label: r.status };
+                  const st = STATUS_CHIP[r.status] || { color: 'default', label: String(r.status ?? '—') };
                   const isPending = r.status === 'pending';
                   return (
                     <TableRow key={r._id || r.txnId} hover>
