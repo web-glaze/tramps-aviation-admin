@@ -20,10 +20,22 @@ import { PERMISSIONS } from '../../constants/permissions';
 type Status = 'pending' | 'approved' | 'rejected' | 'all';
 
 const STATUS_CHIP: Record<string, { color: any; label: string }> = {
-  pending:  { color: 'warning', label: 'Pending' },
-  approved: { color: 'success', label: 'Approved' },
-  rejected: { color: 'error',   label: 'Rejected' },
+  pending:        { color: 'warning', label: 'Pending' },
+  pending_admin:  { color: 'warning', label: 'Pending' },
+  approved:       { color: 'success', label: 'Approved' },
+  completed:      { color: 'success', label: 'Completed' },
+  rejected:       { color: 'error',   label: 'Rejected' },
 };
+
+// The backend populates the agent under `agentId` (an object), and uses
+// status 'pending_admin' for not-yet-reviewed requests. Helpers below read the
+// data defensively so the page never renders an object as a React child.
+function getAgent(r: any): any {
+  return r?.agentId && typeof r.agentId === 'object' ? r.agentId : r?.agent;
+}
+function isPendingRow(status: string): boolean {
+  return status === 'pending' || status === 'pending_admin';
+}
 
 // Coerce a stat value to a plain number. Accepts a number, or a
 // { count, amount } object (the backend's breakdown shape). Returns undefined
@@ -259,20 +271,21 @@ export default function TopupRequestsPage() {
               ) : (
                 rows.map((r: any) => {
                   const st = STATUS_CHIP[r.status] || { color: 'default', label: String(r.status ?? '—') };
-                  const isPending = r.status === 'pending';
+                  const isPending = isPendingRow(r.status);
+                  const agent = getAgent(r);
                   return (
                     <TableRow key={r._id || r.txnId} hover>
                       <TableCell>
                         <Typography variant="body2" fontWeight={600}>
-                          {r.agent?.contactPerson || r.agent?.agencyName || r.agentName || '—'}
+                          {agent?.contactPerson || agent?.agencyName || r.agentName || '—'}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {r.agent?.email || r.agentEmail || '—'}
+                          {agent?.email || r.agentEmail || '—'}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight={600} color="primary">
-                          {r.agent?.agentCode || r.agentCode || r.agentId || '—'}
+                          {agent?.agentId || agent?.agentCode || r.agentCode || '—'}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -362,7 +375,7 @@ export default function TopupRequestsPage() {
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
             Credit <strong>₹{Number(approveTarget?.amount || 0).toLocaleString('en-IN')}</strong> to{' '}
-            <strong>{approveTarget?.agent?.contactPerson || approveTarget?.agent?.agencyName || '—'}</strong>'s wallet?
+            <strong>{getAgent(approveTarget)?.contactPerson || getAgent(approveTarget)?.agencyName || '—'}</strong>'s wallet?
           </Typography>
           <TextField
             fullWidth

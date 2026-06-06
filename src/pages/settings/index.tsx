@@ -81,6 +81,8 @@ const defaultSettings = {
     companyName: 'TRAMPS AVIATION SERVICES PRIVATE LIMITED',
     tagline: 'YOUR JOURNEY, OUR PRIORITY.',
     logoUrl: '',
+    backgroundImageUrl: '',
+    showVerifyQr: true,
     primaryColor: '#1f5fbf',
     accentColor: '#f15a29',
     addressLine1: 'Shop No 112 A Star Avenue Mansimble Bhawarna',
@@ -152,6 +154,7 @@ export default function SettingsPage() {
 
   // ── E-Ticket branding helpers ─────────────────────────────────────────────
   const [logoUploading, setLogoUploading] = useState(false);
+  const [bgUploading, setBgUploading] = useState(false);
   const setTb = (key: string, val: any) =>
     setSettings((s: any) => ({ ...s, ticketBranding: { ...s.ticketBranding, [key]: val } }));
 
@@ -171,6 +174,25 @@ export default function SettingsPage() {
       setSnack({ open: true, msg: '❌ Logo upload failed', sev: 'error' });
     } finally {
       setLogoUploading(false);
+    }
+  };
+
+  const handleTicketBgUpload = async (file?: File | null) => {
+    if (!file) return;
+    setBgUploading(true);
+    try {
+      const res = await settingsApi.uploadImage(file);
+      const url = res.data?.data?.url || res.data?.url;
+      if (url) {
+        setTb('backgroundImageUrl', url);
+        setSnack({ open: true, msg: '✅ Background uploaded', sev: 'success' });
+      } else {
+        setSnack({ open: true, msg: '❌ Upload returned no URL', sev: 'error' });
+      }
+    } catch {
+      setSnack({ open: true, msg: '❌ Background upload failed', sev: 'error' });
+    } finally {
+      setBgUploading(false);
     }
   };
 
@@ -823,6 +845,38 @@ export default function SettingsPage() {
                       value={tb.logoUrl || ''} onChange={e => setTb('logoUrl', e.target.value)} />
                   </Grid>
 
+                  <Grid size={12}><Divider><Typography variant="caption" color="text.secondary">Background image (optional)</Typography></Divider></Grid>
+                  <Grid size={12}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Box sx={{
+                        width: 70, height: 70, borderRadius: 1.5, border: '1px solid', borderColor: 'divider',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', bgcolor: 'grey.50',
+                      }}>
+                        {tb.backgroundImageUrl
+                          ? <img src={tb.backgroundImageUrl} alt="background" style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                          : <Typography variant="caption" color="text.secondary">None</Typography>}
+                      </Box>
+                      <Stack spacing={1}>
+                        <Button variant="outlined" component="label" size="small" disabled={!canEdit || bgUploading}>
+                          {bgUploading ? 'Uploading…' : 'Upload Background'}
+                          <input hidden type="file" accept="image/png,image/jpeg"
+                            onChange={e => handleTicketBgUpload(e.target.files?.[0])} />
+                        </Button>
+                        {tb.backgroundImageUrl && (
+                          <Button size="small" color="error" disabled={!canEdit}
+                            onClick={() => setTb('backgroundImageUrl', '')}>Remove background</Button>
+                        )}
+                        <Typography variant="caption" color="text.secondary">
+                          Transparent PNG (e.g. world map). Empty = built-in dotted pattern.
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Grid>
+                  <Grid size={12}>
+                    <TextField fullWidth label="Background image URL (optional)" placeholder="https://…/map.png"
+                      value={tb.backgroundImageUrl || ''} onChange={e => setTb('backgroundImageUrl', e.target.value)} />
+                  </Grid>
+
                   <Grid size={12}><Divider><Typography variant="caption" color="text.secondary">Colours</Typography></Divider></Grid>
                   <Grid size={6}>
                     <TextField fullWidth type="color" label="Primary (blue)" InputLabelProps={{ shrink: true }}
@@ -831,6 +885,20 @@ export default function SettingsPage() {
                   <Grid size={6}>
                     <TextField fullWidth type="color" label="Accent (orange)" InputLabelProps={{ shrink: true }}
                       value={tb.accentColor || '#f15a29'} onChange={e => setTb('accentColor', e.target.value)} />
+                  </Grid>
+
+                  <Grid size={12}><Divider><Typography variant="caption" color="text.secondary">Options</Typography></Divider></Grid>
+                  <Grid size={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={tb.showVerifyQr !== false}
+                          disabled={!canEdit}
+                          onChange={e => setTb('showVerifyQr', e.target.checked)}
+                        />
+                      }
+                      label='Show "Scan to verify your booking" QR on tickets'
+                    />
                   </Grid>
                 </Grid>
               </Grid>
