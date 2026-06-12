@@ -292,6 +292,41 @@ export default function AddSeriesFarePage() {
       [date]: { ...prev[date], [key]: val },
     }));
   };
+
+  // Excel-style fill-down — copy a value into the same column for
+  // EVERY day-row in the table. Used by the "Apply to all" buttons in
+  // the master defaults bar so admins don't have to type the same PNR
+  // / hrs / tickets in 30 rows individually.
+  //
+  // June 2026: skips ROWS where active === false so admins can mark a
+  // few specific days off and still bulk-fill the rest. Also lets the
+  // admin pass `sourceDate` to start the fill from any row (not just
+  // the first row in the table).
+  const fillAllDayRows = (
+    key: keyof DayRow,
+    val: any,
+    opts?: { sourceDate?: string; includeInactive?: boolean },
+  ) => {
+    setDayRows((prev) => {
+      const next: Record<string, DayRow> = {};
+      Object.keys(prev).forEach((date) => {
+        const row = prev[date];
+        // Skip the source row (it already has the value we're copying)
+        // so we don't trigger a redundant re-render of that input.
+        if (opts?.sourceDate === date) {
+          next[date] = row;
+          return;
+        }
+        // Respect Active = false unless the caller forces inclusion.
+        if (!opts?.includeInactive && row.active === false) {
+          next[date] = row;
+          return;
+        }
+        next[date] = { ...row, [key]: val };
+      });
+      return next;
+    });
+  };
   // Remove a single date from the table (admin's "remove this day" action).
   // The corresponding date is then sent to the backend in `disabledDates`
   // only if the date is also outside the current range — otherwise just
@@ -1220,24 +1255,86 @@ export default function AddSeriesFarePage() {
           to the backend). Use the trash icon to drop a day entirely.
         </Typography>
 
-        {/* ── Master "Disable Before Hrs" ────────────────────────────────────
-            Sets the default cutoff (hours-before-departure) for new rows.
-            Existing per-row values stay editable independently. */}
-        <Box sx={{ mb: 2, display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
-          <TextField
-            label="Default Disable Before Hrs"
-            size="small"
-            type="number"
-            inputProps={{ min: 0 }}
-            sx={{ width: 220 }}
-            value={form.disableBeforeHrs}
-            onChange={(e) => f("disableBeforeHrs", e.target.value)}
-            helperText="Hours before departure to auto-close bookings"
-          />
-          <Typography variant="caption" color="text.secondary">
-            {sortedDayDates.length} day{sortedDayDates.length !== 1 ? "s" : ""}{" "}
-            in the table
-          </Typography>
+        {/* ── Master defaults + Excel-style "Apply to all rows" ────────
+            June 2026: added per-field "Apply to all rows" buttons so
+            the admin can type a value once at the top and push it into
+            every day-row at once (like Excel's drag-fill or a TBO bulk
+            edit). Each button uses fillAllDayRows() to mutate that one
+            column across every row in `dayRows`. ─────────────────── */}
+        <Box sx={{ mb: 2, display: "flex", gap: 2, alignItems: "flex-start", flexWrap: "wrap" }}>
+          {/* Master: Disable Before Hrs */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <TextField
+                label="Default Disable Before Hrs"
+                size="small"
+                type="number"
+                inputProps={{ min: 0 }}
+                sx={{ width: 220 }}
+                value={form.disableBeforeHrs}
+                onChange={(e) => f("disableBeforeHrs", e.target.value)}
+              />
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={sortedDayDates.length === 0 || !form.disableBeforeHrs}
+                onClick={() => fillAllDayRows("disableBeforeHrs", form.disableBeforeHrs)}
+                sx={{ minWidth: 0, px: 1.5, whiteSpace: "nowrap" }}
+                title="Copy this value into every day-row's Disable Before Hrs column"
+              >
+                ↓ All rows
+              </Button>
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+              Hours before departure to auto-close bookings
+            </Typography>
+          </Box>
+
+          {/* Master: Tickets / Day */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <TextField
+                label="Default Tickets / Day"
+                size="small"
+                type="number"
+                inputProps={{ min: 0 }}
+                sx={{ width: 180 }}
+                value={form.ticketsPerDay}
+                onChange={(e) => f("ticketsPerDay", e.target.value)}
+              />
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={sortedDayDates.length === 0 || !form.ticketsPerDay}
+                onClick={() => fillAllDayRows("ticketsPerDay", form.ticketsPerDay)}
+                sx={{ minWidth: 0, px: 1.5, whiteSpace: "nowrap" }}
+                title="Copy this value into every day-row's Tickets / Day column"
+              >
+                ↓ All rows
+              </Button>
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+              Seats released per travel day
+            </Typography>
+          </Box>
+
+          {/* Day count badge */}
+          <Box sx={{ alignSelf: "center", ml: "auto" }}>
+            <Typography
+              variant="caption"
+              sx={{
+                px: 1.5,
+                py: 0.75,
+                borderRadius: 999,
+                bgcolor: "primary.50",
+                color: "primary.main",
+                fontWeight: 700,
+              }}
+            >
+              {sortedDayDates.length} day{sortedDayDates.length !== 1 ? "s" : ""}{" "}
+              in the table
+            </Typography>
+          </Box>
         </Box>
 
         {sortedDayDates.length === 0 ? (
@@ -1256,9 +1353,64 @@ export default function AddSeriesFarePage() {
                 <TableRow>
                   <TableCell padding="checkbox">Active</TableCell>
                   <TableCell>Travel Date</TableCell>
-                  <TableCell>PNR</TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      PNR
+                      <Box
+                        component="button"
+                        type="button"
+                        title="Copy the FIRST row's PNR into every row below"
+                        onClick={() => {
+                          const firstDate = sortedDayDates[0];
+                          const firstVal = dayRows[firstDate]?.pnr;
+                          if (firstVal) fillAllDayRows("pnr", firstVal);
+                        }}
+                        sx={{
+                          ml: 0.25,
+                          background: "transparent",
+                          border: 0,
+                          cursor: "pointer",
+                          color: "primary.main",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          p: 0,
+                          "&:hover": { textDecoration: "underline" },
+                        }}
+                      >
+                        ↓ fill
+                      </Box>
+                    </Box>
+                  </TableCell>
                   <TableCell>Disable Before Hrs</TableCell>
-                  <TableCell>Tickets / Day</TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      Tickets / Day
+                      <Box
+                        component="button"
+                        type="button"
+                        title="Copy the FIRST row's tickets value into every row below"
+                        onClick={() => {
+                          const firstDate = sortedDayDates[0];
+                          const firstVal = dayRows[firstDate]?.ticketsPerDay;
+                          if (firstVal !== "" && firstVal != null)
+                            fillAllDayRows("ticketsPerDay", firstVal);
+                        }}
+                        sx={{
+                          ml: 0.25,
+                          background: "transparent",
+                          border: 0,
+                          cursor: "pointer",
+                          color: "primary.main",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          p: 0,
+                          "&:hover": { textDecoration: "underline" },
+                        }}
+                      >
+                        ↓ fill
+                      </Box>
+                    </Box>
+                  </TableCell>
                   <TableCell>Tickets Left</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Segment</TableCell>
@@ -1298,13 +1450,43 @@ export default function AddSeriesFarePage() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <TextField
-                          size="small"
-                          placeholder="ABCD12, EFGH34"
-                          sx={{ minWidth: 160 }}
-                          value={row.pnr}
-                          onChange={(e) => updateDayRow(date, "pnr", e.target.value.toUpperCase())}
-                        />
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <TextField
+                            size="small"
+                            placeholder="ABCD12, EFGH34"
+                            sx={{ minWidth: 160 }}
+                            value={row.pnr}
+                            onChange={(e) => updateDayRow(date, "pnr", e.target.value.toUpperCase())}
+                          />
+                          <Box
+                            component="button"
+                            type="button"
+                            disabled={!row.pnr}
+                            title="Copy this PNR into every ACTIVE row in the table"
+                            onClick={() => {
+                              if (row.pnr) {
+                                fillAllDayRows("pnr", row.pnr, { sourceDate: date });
+                              }
+                            }}
+                            sx={{
+                              background: "transparent",
+                              border: "1px solid",
+                              borderColor: "primary.main",
+                              borderRadius: 1,
+                              color: "primary.main",
+                              cursor: "pointer",
+                              fontSize: 10,
+                              fontWeight: 800,
+                              px: 0.6,
+                              py: 0.2,
+                              opacity: row.pnr ? 1 : 0.4,
+                              "&:hover": { bgcolor: "primary.50" },
+                              "&:disabled": { cursor: "not-allowed" },
+                            }}
+                          >
+                            ↓
+                          </Box>
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <TextField
@@ -1318,15 +1500,51 @@ export default function AddSeriesFarePage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <TextField
-                          size="small"
-                          type="number"
-                          inputProps={{ min: 0 }}
-                          placeholder={String(defaultTickets)}
-                          sx={{ width: 90 }}
-                          value={row.ticketsPerDay}
-                          onChange={(e) => updateDayRow(date, "ticketsPerDay", e.target.value)}
-                        />
+                        {/* June 2026 — per-row "↓ fill from here" so
+                            admin can type any row's tickets and push
+                            it down to every active row below (skipping
+                            inactive ones via fillAllDayRows). */}
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <TextField
+                            size="small"
+                            type="number"
+                            inputProps={{ min: 0 }}
+                            placeholder={String(defaultTickets)}
+                            sx={{ width: 90 }}
+                            value={row.ticketsPerDay}
+                            onChange={(e) => updateDayRow(date, "ticketsPerDay", e.target.value)}
+                          />
+                          <Box
+                            component="button"
+                            type="button"
+                            disabled={row.ticketsPerDay === "" || row.ticketsPerDay == null}
+                            title="Copy this value into every ACTIVE row in the table"
+                            onClick={() => {
+                              if (row.ticketsPerDay !== "" && row.ticketsPerDay != null) {
+                                fillAllDayRows("ticketsPerDay", row.ticketsPerDay, {
+                                  sourceDate: date,
+                                });
+                              }
+                            }}
+                            sx={{
+                              background: "transparent",
+                              border: "1px solid",
+                              borderColor: "primary.main",
+                              borderRadius: 1,
+                              color: "primary.main",
+                              cursor: "pointer",
+                              fontSize: 10,
+                              fontWeight: 800,
+                              px: 0.6,
+                              py: 0.2,
+                              opacity: row.ticketsPerDay === "" || row.ticketsPerDay == null ? 0.4 : 1,
+                              "&:hover": { bgcolor: "primary.50" },
+                              "&:disabled": { cursor: "not-allowed" },
+                            }}
+                          >
+                            ↓
+                          </Box>
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">

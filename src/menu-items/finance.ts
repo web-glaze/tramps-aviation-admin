@@ -2,7 +2,7 @@ import {
   WalletOutlined, PercentageOutlined, BarChartOutlined,
   GiftOutlined, RollbackOutlined, BellOutlined, SettingOutlined,
   FileTextOutlined, MailOutlined, SafetyOutlined, CheckSquareOutlined,
-  ExportOutlined, ReconciliationOutlined,
+  ExportOutlined, ReconciliationOutlined, QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { PERMISSIONS } from '../constants/permissions';
 
@@ -154,6 +154,14 @@ const SettingPages = {
       url: '/settings',
       icon: SettingOutlined,
       permission: PERMISSIONS.SETTINGS_VIEW,
+    },
+    {
+      id: 'faqs',
+      title: 'FAQs Editor',
+      type: 'item',
+      url: '/faqs',
+      icon: QuestionCircleOutlined,
+      permission: PERMISSIONS.CONTENT_FAQS_VIEW,
     },
     {
       id: 'admin-users',

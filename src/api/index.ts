@@ -314,6 +314,21 @@ export const cmsApi = {
   seed:     ()                        => apiClient.post('/pages/admin/seed'),
 };
 
+// FAQs — admin reads BOTH active + inactive rows; agent / customer
+// surfaces use the public list endpoints in their own API services.
+// The bulk-create endpoint lets the admin editor save N rows in one
+// shot (used by the multi-add UI on /faqs).
+export const faqsApi = {
+  list:        (audience?: 'agent' | 'customer') =>
+    apiClient.get('/faqs/admin', { params: audience ? { audience } : {} }),
+  create:      (data: any) => apiClient.post('/faqs', data),
+  bulkCreate:  (items: any[]) => apiClient.post('/faqs/bulk', { items }),
+  update:      (id: string, data: any) => apiClient.patch(`/faqs/${id}`, data),
+  remove:      (id: string) => apiClient.delete(`/faqs/${id}`),
+  reorder:     (items: Array<{ _id: string; order: number }>) =>
+    apiClient.patch('/faqs/reorder', { items }),
+};
+
 export default apiClient;
 
 // `mockDataApi` exposes admin endpoints that seed/manipulate sample mock data

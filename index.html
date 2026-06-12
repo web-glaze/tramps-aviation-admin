@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Tramps Aviation brand logo as favicon (SVG scales at every DPI).
+         Vite serves /public assets at the root URL, so /logo.svg works the
+         same way CRA's %PUBLIC_URL%/logo.svg used to. -->
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="alternate icon" href="/favicon.ico" />
+    <link rel="mask-icon" href="/logo.svg" color="#209ACD" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#209ACD" />
+    <meta
+      name="description"
+      content="Tramps Aviation Admin — Platform Control Panel"
+    />
+    <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>Tramps Aviation Admin</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <!-- Vite mounts the app via the ES-module entry point. The legacy
+         CRA bootstrapper at src/index.tsx still exists as a fallback so
+         the project can roll back to react-scripts by reverting
+         package.json scripts. -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

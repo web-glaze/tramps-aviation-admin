@@ -1,5 +1,10 @@
+// Vite reads env vars via `import.meta.env` (CRA used process.env).
+// `envPrefix: ['VITE_', 'REACT_APP_']` in vite.config.ts means BOTH
+// REACT_APP_API_URL and VITE_API_URL are exposed during the migration
+// window. `(import.meta as any)` keeps this safe under Jest / CRA too.
 export const API_BASE_URL =
-  process.env.REACT_APP_API_URL ||
+  (import.meta as any).env?.VITE_API_URL ||
+  (import.meta as any).env?.REACT_APP_API_URL ||
   "https://tramps-aviation-backend.onrender.com/api";
 
 // Base URL without /api — used for media/file URLs returned by the server

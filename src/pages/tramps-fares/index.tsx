@@ -1076,7 +1076,12 @@ export default function TrampsTicketsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { page, limit: 20, type };
+      // Limit bumped 20 → 100 (June 2026). The list groups raw fare
+      // rows into series-parent rows, so 20 raw items typically
+      // collapsed to 3-4 visible groups — which made the page look
+      // half-empty. With limit=100 we get ~10+ visible groups per
+      // page and the table fills the viewport properly.
+      const params: any = { page, limit: 100, type };
       if (debouncedSearch) params.search = debouncedSearch;
       if (activeFilter !== "") params.isActive = activeFilter;
       if (dateRange.from) params.fromDate = dateRange.from;
@@ -2544,7 +2549,14 @@ export default function TrampsTicketsPage() {
             <Button
               size="small"
               variant="outlined"
-              disabled={records.length < 20}
+              // June 2026 fix — Next was disabled when records.length<20
+              // but the page limit was bumped to 100 (and the actual
+              // total may be lower than that limit). Result: with 29
+              // total tickets the Next button stayed enabled and
+              // showed an empty "No flight tickets found" page. We now
+              // compare against the backend `total` count, which is
+              // authoritative regardless of the limit.
+              disabled={records.length === 0 || page * 100 >= total}
               onClick={() => setPage((p) => p + 1)}
             >
               Next

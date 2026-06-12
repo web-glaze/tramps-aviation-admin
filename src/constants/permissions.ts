@@ -72,6 +72,8 @@ export const PERMISSIONS = {
   CONTENT_FARES_EDIT: 'content.fares.edit',
   CONTENT_ENQUIRIES_VIEW: 'content.enquiries.view',
   CONTENT_ENQUIRIES_EDIT: 'content.enquiries.edit',
+  CONTENT_FAQS_VIEW: 'content.faqs.view',
+  CONTENT_FAQS_EDIT: 'content.faqs.edit',
 
   // Admin Users
   ADMIN_USERS_VIEW: 'admin-users.view',

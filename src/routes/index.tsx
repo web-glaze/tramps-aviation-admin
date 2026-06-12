@@ -25,6 +25,7 @@ import ReviewsPage from '../pages/reviews';
 import PagesManager from '../pages/cms';
 import EnquiriesPage from '../pages/enquiries';
 import SubAgentsPage from '../pages/subagents';
+import FaqsPage from '../pages/faqs';
 // These four were placeholder stubs in `pages/misc` — now full admin pages
 // each backed by a real backend endpoint (refunds, series-fare inventory,
 // hotel bookings, insurance policies).
@@ -132,6 +133,10 @@ const router = createBrowserRouter([
       { path: 'promo', element: <ProtectedRoute permission={PERMISSIONS.PROMOS_VIEW} element={<PromoPage />} />, errorElement: <PageError /> },
       { path: 'notifications', element: <ProtectedRoute permission={PERMISSIONS.NOTIFICATIONS_VIEW} element={<NotificationsPage />} />, errorElement: <PageError /> },
       { path: 'settings', element: <ProtectedRoute permission={PERMISSIONS.SETTINGS_VIEW} element={<SettingsPage />} />, errorElement: <PageError /> },
+      /* FAQ editor — manage Agent + Customer FAQs surfaced on the B2B
+         help page and the B2C site. Gated by the dedicated
+         content.faqs.view permission so role grants stay tidy. */
+      { path: 'faqs', element: <ProtectedRoute permission={PERMISSIONS.CONTENT_FAQS_VIEW} element={<FaqsPage />} />, errorElement: <PageError /> },
       { path: 'admin-users', element: <ProtectedRoute permission={PERMISSIONS.ADMIN_USERS_VIEW} element={<AdminUsersPage />} />, errorElement: <PageError /> },
       { path: 'tramps-fares', element: <ProtectedRoute permission={PERMISSIONS.CONTENT_FARES_VIEW} element={<TrampsAviationFaresPage />} />, errorElement: <PageError /> },
       /* TBO-style full-page "Add Series Fare" form — expands a date range into
